@@ -7,5 +7,9 @@
         <Nullable>enable</Nullable>
         <UserSecretsId>7ce52502-8b99-44fc-8c7a-cd7312179ac4</UserSecretsId>
     </PropertyGroup>
+    
+    <ItemGroup>
+        <ProjectReference Include="../WattEngine.Ideask/WattEngine.Ideask.csproj" />
+    </ItemGroup>
 
 </Project>
