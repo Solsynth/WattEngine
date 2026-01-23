@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using NodaTime;
 using Quartz;
+using WattEngine.Ideask.Broad;
+using WattEngine.Ideask.Task;
 
 namespace WattEngine.Ideask;
 
@@ -13,6 +15,11 @@ public class AppDatabase(
     IConfiguration configuration
 ) : DbContext(options)
 {
+    public DbSet<WtTask> Tasks { get; set; } = null!;
+    public DbSet<WtBroad> Broads { get; set; } = null!;
+    public DbSet<WtProject> Projects { get; set; } = null!;
+    public DbSet<WtProjectMember> ProjectMembers { get; set; } = null!;
+    
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseNpgsql(
@@ -30,6 +37,32 @@ public class AppDatabase(
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplySoftDeleteFilters();
+
+        // WtProjectMember
+        modelBuilder.Entity<WtProjectMember>()
+            .HasOne(pm => pm.Project)
+            .WithMany(p => p.Members)
+            .HasForeignKey(pm => pm.ProjectId);
+
+        // WtBroad
+        modelBuilder.Entity<WtBroad>()
+            .HasOne(b => b.Project)
+            .WithMany(p => p.Broads)
+            .HasForeignKey(b => b.ProjectId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // WtTask self-reference
+        modelBuilder.Entity<WtTask>()
+            .HasOne(t => t.ParentTask)
+            .WithMany(t => t.SubTasks)
+            .HasForeignKey(t => t.ParentTaskId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // WtTask many-to-many with WtProjectMember
+        modelBuilder.Entity<WtTask>()
+            .HasMany(t => t.Assignees)
+            .WithMany()
+            .UsingEntity(j => j.ToTable("WtTaskAssignees"));
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -41,7 +74,7 @@ public class AppDatabase(
 
 public class AppDatabaseRecyclingJob(AppDatabase db, ILogger<AppDatabaseRecyclingJob> logger) : IJob
 {
-    public async Task Execute(IJobExecutionContext context)
+    public async System.Threading.Tasks.Task Execute(IJobExecutionContext context)
     {
         var now = SystemClock.Instance.GetCurrentInstant();
 
