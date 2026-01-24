@@ -3,6 +3,8 @@ using System.Text.Json.Serialization;
 using DysonNetwork.Shared.Cache;
 using NodaTime;
 using NodaTime.Serialization.SystemTextJson;
+using WattEngine.Ideask.Connectivity;
+using WattEngine.Ideask.Task;
 
 namespace WattEngine.Ideask.Startup;
 
@@ -53,6 +55,9 @@ public static class ServiceCollectionExtensions
 
         public IServiceCollection AddAppBusinessServices(IConfiguration configuration)
         {
+            services.AddScoped<RealtimeDeliveryService>();
+            services.AddHostedService<TaskReminderService>();
+
             return services;
         }
     }

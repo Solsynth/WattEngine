@@ -3,7 +3,6 @@ using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WattEngine.Ideask.Broad;
-using WattEngine.Ideask.Services;
 
 namespace WattEngine.Ideask.Controllers;
 

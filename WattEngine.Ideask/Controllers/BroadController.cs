@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WattEngine.Ideask.Services;
+using WattEngine.Ideask.Broad;
 
 namespace WattEngine.Ideask.Controllers;
 

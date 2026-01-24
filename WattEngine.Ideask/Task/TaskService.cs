@@ -1,16 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using DysonNetwork.Shared.Proto;
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using NodaTime;
 using WattEngine.Ideask.Broad;
+using WattEngine.Ideask.Connectivity;
+using WattEngine.Ideask.Models.WebSocket;
 
-namespace WattEngine.Ideask.Services;
+namespace WattEngine.Ideask.Task;
 
-public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccessor, ILogger<TaskService> logger)
+public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccessor, ILogger<TaskService> logger, RealtimeDeliveryService webSocketService)
 {
     private Guid GetCurrentAccountId()
     {
@@ -22,7 +19,10 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
     public async global::System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> CreateTaskAsync(Guid broadId, string name, Guid? parentTaskId, List<Guid>? assigneeAccountIds)
     {
         var accountId = GetCurrentAccountId();
-        var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId);
+        var broad = await db.Broads
+            .Include(b => b.Project)
+            .ThenInclude(p => p.Members)
+            .FirstOrDefaultAsync(b => b.Id == broadId);
         if (broad == null) throw new KeyNotFoundException("Broad not found");
 
         // Check access to broad
@@ -44,6 +44,10 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
 
         db.Tasks.Add(task);
         await db.SaveChangesAsync();
+
+        // Send WebSocket notification
+        var packet = webSocketService.CreateTaskCreatedPacket(task, broad, broad.Project, accountId);
+        await SendWebSocketPacketToProjectMembersAsync(broad, packet);
 
         if (assigneeAccountIds != null && assigneeAccountIds.Any())
         {
@@ -85,21 +89,79 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
 
     public async global::System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> UpdateTaskAsync(Guid taskId, string name, WattEngine.Ideask.Task.TaskCompleteReason? completeReason)
     {
-        var task = await GetTaskAsync(taskId);
+        var accountId = GetCurrentAccountId();
+        var task = await db.Tasks
+            .Include(t => t.Broad)
+            .ThenInclude(b => b.Project)
+            .FirstOrDefaultAsync(t => t.Id == taskId);
+        
         if (task == null) throw new KeyNotFoundException("Task not found");
-        task.Name = name;
-        task.CompleteReason = completeReason;
-        if (completeReason.HasValue) task.CompletedAt = SystemClock.Instance.GetCurrentInstant();
+
+        // Check access
+        var broad = task.Broad;
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.CreatorAccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+            throw new UnauthorizedAccessException("No access to task");
+
+        var changedProperties = new List<string>();
+        if (task.Name != name)
+        {
+            task.Name = name;
+            changedProperties.Add("name");
+        }
+        
+        if (task.CompleteReason != completeReason)
+        {
+            task.CompleteReason = completeReason;
+            changedProperties.Add("complete_reason");
+            if (completeReason.HasValue) 
+            {
+                task.CompletedAt = SystemClock.Instance.GetCurrentInstant();
+                changedProperties.Add("completed_at");
+            }
+            else
+            {
+                task.CompletedAt = null;
+                changedProperties.Add("completed_at");
+            }
+        }
+
         await db.SaveChangesAsync();
+
+        if (changedProperties.Any())
+        {
+            var packet = webSocketService.CreateTaskUpdatedPacket(task, broad, broad.Project, changedProperties, accountId);
+            await SendWebSocketPacketToProjectMembersAsync(broad, packet);
+        }
+
         return task;
     }
 
     public async global::System.Threading.Tasks.Task DeleteTaskAsync(Guid taskId)
     {
-        var task = await GetTaskAsync(taskId);
+        var accountId = GetCurrentAccountId();
+        var task = await db.Tasks
+            .Include(t => t.Broad)
+            .ThenInclude(b => b.Project)
+            .FirstOrDefaultAsync(t => t.Id == taskId);
+        
         if (task == null) throw new KeyNotFoundException("Task not found");
+
+        // Check access
+        var broad = task.Broad;
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.CreatorAccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+            throw new UnauthorizedAccessException("No access to task");
+
         db.Tasks.Remove(task);
         await db.SaveChangesAsync();
+
+        var packet = webSocketService.CreateTaskUpdatedPacket(
+            task, 
+            broad, 
+            broad.Project, 
+            new List<string> { "deleted" }, 
+            accountId
+        );
+        await SendWebSocketPacketToProjectMembersAsync(broad, packet);
     }
 
     public async global::System.Threading.Tasks.Task AssignTaskAsync(Guid taskId, List<Guid> assigneeAccountIds)
@@ -108,6 +170,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
             .Include(t => t.Broad)
             .ThenInclude(b => b.Project)
             .ThenInclude(p => p.Members)
+            .Include(t => t.Assignees)
             .FirstOrDefaultAsync(t => t.Id == taskId);
 
         if (task == null) throw new KeyNotFoundException("Task not found");
@@ -121,6 +184,10 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         if (!assigneeAccountIds.All(id => validMembers.Contains(id) || id == broad.AccountId))
             throw new InvalidOperationException("Assignees must be project members or broad creator");
 
+        var existingAssigneeIds = task.Assignees.Select(a => a.AccountId).ToList();
+        var newAssigneeIds = assigneeAccountIds.Except(existingAssigneeIds).ToList();
+        var removedAssigneeIds = existingAssigneeIds.Except(assigneeAccountIds).ToList();
+
         var assignees = await db.ProjectMembers
             .Where(pm => assigneeAccountIds.Contains(pm.AccountId) && pm.ProjectId == broad.ProjectId)
             .ToListAsync();
@@ -132,17 +199,71 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         }
 
         await db.SaveChangesAsync();
+
+        if (newAssigneeIds.Any() || removedAssigneeIds.Any())
+        {
+            var packet = webSocketService.CreateTaskAssignedPacket(
+                task, 
+                broad, 
+                broad.Project, 
+                newAssigneeIds.Select(id => id.ToString()).ToList(),
+                removedAssigneeIds.Select(id => id.ToString()).ToList(),
+                accountId
+            );
+            await SendWebSocketPacketToProjectMembersAsync(broad, packet);
+        }
     }
 
     public async global::System.Threading.Tasks.Task UnassignTaskAsync(Guid taskId, Guid assigneeAccountId)
     {
-        var task = await GetTaskAsync(taskId);
+        var accountId = GetCurrentAccountId();
+        var task = await db.Tasks
+            .Include(t => t.Broad)
+            .ThenInclude(b => b.Project)
+            .Include(t => t.Assignees)
+            .FirstOrDefaultAsync(t => t.Id == taskId);
+        
         if (task == null) throw new KeyNotFoundException("Task not found");
+
+        // Check access
+        var broad = task.Broad;
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.CreatorAccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+            throw new UnauthorizedAccessException("No access to task");
 
         var assignee = task.Assignees.FirstOrDefault(a => a.AccountId == assigneeAccountId);
         if (assignee == null) throw new KeyNotFoundException("Assignee not found");
 
         task.Assignees.Remove(assignee);
         await db.SaveChangesAsync();
+
+        var packet = webSocketService.CreateTaskAssignedPacket(
+            task, 
+            broad, 
+            broad.Project, 
+            new List<string>(),
+            new List<string> { assigneeAccountId.ToString() },
+            accountId
+        );
+        await SendWebSocketPacketToProjectMembersAsync(broad, packet);
+    }
+
+    private async global::System.Threading.Tasks.Task SendWebSocketPacketToProjectMembersAsync(WtBroad broad, IdeaskWebSocketPacket packet)
+    {
+        var userIds = new List<string>();
+        
+        // Add broad creator
+        userIds.Add(broad.AccountId.ToString());
+        
+        // Add project members if broad belongs to a project
+        if (broad.Project != null)
+        {
+            var projectMembers = await db.ProjectMembers
+                .Where(pm => pm.ProjectId == broad.Project.Id)
+                .Select(pm => pm.AccountId.ToString())
+                .ToListAsync();
+            userIds.AddRange(projectMembers);
+        }
+
+        await webSocketService.SendToUsersAsync(userIds.Distinct().ToList(), packet);
     }
 }
