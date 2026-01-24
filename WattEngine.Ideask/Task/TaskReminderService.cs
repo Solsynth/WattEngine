@@ -29,7 +29,7 @@ public class TaskReminderService(
         "1d", "12h", "6h", "3h", "1h", "30m", "15m", "5m"
     ];
 
-    protected override async global::System.Threading.Tasks.Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async System.Threading.Tasks.Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -55,7 +55,7 @@ public class TaskReminderService(
         }
     }
 
-    private async global::System.Threading.Tasks.Task CheckAndSendDueRemindersAsync(CancellationToken cancellationToken)
+    private async System.Threading.Tasks.Task CheckAndSendDueRemindersAsync(CancellationToken cancellationToken)
     {
         var now = clock.GetCurrentInstant();
 

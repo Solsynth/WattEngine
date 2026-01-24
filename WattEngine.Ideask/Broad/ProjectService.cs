@@ -13,7 +13,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         return Guid.Parse(currentUser.Id);
     }
 
-    public async global::System.Threading.Tasks.Task<WtProject> CreateProjectAsync(string name)
+    public async System.Threading.Tasks.Task<WtProject> CreateProjectAsync(string name)
     {
         var accountId = GetCurrentAccountId();
         var project = new WtProject
@@ -31,7 +31,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         return project;
     }
 
-    public async global::System.Threading.Tasks.Task<List<WtProject>> GetProjectsAsync()
+    public async System.Threading.Tasks.Task<List<WtProject>> GetProjectsAsync()
     {
         var accountId = GetCurrentAccountId();
         return await db.Projects
@@ -39,7 +39,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
             .ToListAsync();
     }
 
-    public async global::System.Threading.Tasks.Task<WtProject?> GetProjectAsync(Guid projectId)
+    public async System.Threading.Tasks.Task<WtProject?> GetProjectAsync(Guid projectId)
     {
         var accountId = GetCurrentAccountId();
         return await db.Projects
@@ -47,7 +47,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
             .FirstOrDefaultAsync(p => p.Id == projectId && (p.AccountId == accountId || p.Members.Any(m => m.AccountId == accountId)));
     }
 
-    public async global::System.Threading.Tasks.Task<WtProject> UpdateProjectAsync(Guid projectId, string name)
+    public async System.Threading.Tasks.Task<WtProject> UpdateProjectAsync(Guid projectId, string name)
     {
         var accountId = GetCurrentAccountId();
         var project = await db.Projects
@@ -81,7 +81,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         return project;
     }
 
-    public async global::System.Threading.Tasks.Task DeleteProjectAsync(Guid projectId)
+    public async System.Threading.Tasks.Task DeleteProjectAsync(Guid projectId)
     {
         var accountId = GetCurrentAccountId();
         var project = await db.Projects
@@ -108,7 +108,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         await webSocketService.SendToUsersAsync(userIds.Distinct().ToList(), packet);
     }
 
-    public async global::System.Threading.Tasks.Task AddMemberAsync(Guid projectId, Guid memberAccountId, Permission permission)
+    public async System.Threading.Tasks.Task AddMemberAsync(Guid projectId, Guid memberAccountId, Permission permission)
     {
         var accountId = GetCurrentAccountId();
         var project = await db.Projects
@@ -146,7 +146,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         await webSocketService.SendToUsersAsync(userIds.Distinct().ToList(), packet);
     }
 
-    public async global::System.Threading.Tasks.Task RemoveMemberAsync(Guid projectId, Guid memberAccountId)
+    public async System.Threading.Tasks.Task RemoveMemberAsync(Guid projectId, Guid memberAccountId)
     {
         var accountId = GetCurrentAccountId();
         var project = await db.Projects

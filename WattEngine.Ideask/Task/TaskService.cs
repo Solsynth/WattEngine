@@ -18,7 +18,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         return Guid.Parse(currentUser.Id);
     }
 
-    public async global::System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> CreateTaskAsync(
+    public async System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> CreateTaskAsync(
         Guid broadId,
         string name,
         string? description,
@@ -73,7 +73,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         return task;
     }
 
-    public async global::System.Threading.Tasks.Task<List<WattEngine.Ideask.Task.WtTask>> GetTasksAsync(Guid broadId)
+    public async System.Threading.Tasks.Task<List<WattEngine.Ideask.Task.WtTask>> GetTasksAsync(Guid broadId)
     {
         var accountId = GetCurrentAccountId();
         var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId);
@@ -87,7 +87,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
             .ToListAsync();
     }
 
-    public async global::System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask?> GetTaskAsync(Guid taskId)
+    public async System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask?> GetTaskAsync(Guid taskId)
     {
         var accountId = GetCurrentAccountId();
         var task = await db.Tasks
@@ -103,7 +103,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         return task;
     }
 
-    public async global::System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> UpdateTaskAsync(
+    public async System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> UpdateTaskAsync(
         Guid taskId,
         string name,
         string? description,
@@ -190,7 +190,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         return task;
     }
 
-    public async global::System.Threading.Tasks.Task DeleteTaskAsync(Guid taskId)
+    public async System.Threading.Tasks.Task DeleteTaskAsync(Guid taskId)
     {
         var accountId = GetCurrentAccountId();
         var task = await db.Tasks
@@ -218,7 +218,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         await SendWebSocketPacketToProjectMembersAsync(broad, packet);
     }
 
-    public async global::System.Threading.Tasks.Task AssignTaskAsync(Guid taskId, List<Guid> assigneeAccountIds)
+    public async System.Threading.Tasks.Task AssignTaskAsync(Guid taskId, List<Guid> assigneeAccountIds)
     {
         var task = await db.Tasks
             .Include(t => t.Broad)
@@ -268,7 +268,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         }
     }
 
-    public async global::System.Threading.Tasks.Task UnassignTaskAsync(Guid taskId, Guid assigneeAccountId)
+    public async System.Threading.Tasks.Task UnassignTaskAsync(Guid taskId, Guid assigneeAccountId)
     {
         var accountId = GetCurrentAccountId();
         var task = await db.Tasks
@@ -301,7 +301,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         await SendWebSocketPacketToProjectMembersAsync(broad, packet);
     }
 
-    private async global::System.Threading.Tasks.Task SendWebSocketPacketToProjectMembersAsync(WtBroad broad, IdeaskWebSocketPacket packet)
+    private async System.Threading.Tasks.Task SendWebSocketPacketToProjectMembersAsync(WtBroad broad, IdeaskWebSocketPacket packet)
     {
         var userIds = new List<string>();
         

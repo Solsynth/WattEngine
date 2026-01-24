@@ -18,7 +18,7 @@ public class BroadService(
             : Guid.Parse(currentUser.Id);
     }
 
-    public async global::System.Threading.Tasks.Task<WtBroad> CreateBroadAsync(string name, Guid? projectId,
+    public async Task<WtBroad> CreateBroadAsync(string name, Guid? projectId,
         string? description = null, string? content = null, string? backgroundImageId = null,
         string? iconImageId = null, Visibility? visibility = null)
     {
@@ -70,7 +70,7 @@ public class BroadService(
         return broad;
     }
 
-    public async global::System.Threading.Tasks.Task<List<WtBroad>> GetBroadsAsync()
+    public async Task<List<WtBroad>> GetBroadsAsync()
     {
         var accountId = GetCurrentAccountId();
         return await db.Broads
@@ -189,19 +189,18 @@ public class BroadService(
         return broad;
     }
 
-    public async global::System.Threading.Tasks.Task DeleteBroadAsync(Guid broadId)
+    public async System.Threading.Tasks.Task DeleteBroadAsync(Guid broadId)
     {
         var accountId = GetCurrentAccountId();
         var broad = await db.Broads
             .Include(b => b.Project)
+            .ThenInclude(p => p.Members)
             .FirstOrDefaultAsync(b => b.Id == broadId);
 
         if (broad == null) throw new KeyNotFoundException("Broad not found");
 
         // Check access
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId &&
-                                                                       !broad.Project.Members.Any(m =>
-                                                                           m.AccountId == accountId))))
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && broad.Project.Members.All(m => m.AccountId != accountId))))
             throw new UnauthorizedAccessException("No access to broad");
 
         db.Broads.Remove(broad);

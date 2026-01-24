@@ -12,7 +12,7 @@ public class RealtimeDeliveryService(
     IClock clock
 )
 {
-    public async global::System.Threading.Tasks.Task SendToProjectMembersAsync(
+    public async System.Threading.Tasks.Task SendToProjectMembersAsync(
         string projectId,
         IdeaskWebSocketPacket packet,
         CancellationToken cancellationToken = default
@@ -39,7 +39,7 @@ public class RealtimeDeliveryService(
         }
     }
 
-    public async global::System.Threading.Tasks.Task SendToUsersAsync(
+    public async System.Threading.Tasks.Task SendToUsersAsync(
         List<string> userIds,
         IdeaskWebSocketPacket packet,
         CancellationToken cancellationToken = default
