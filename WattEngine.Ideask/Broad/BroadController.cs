@@ -14,6 +14,12 @@ public class BroadController(BroadService broadService) : ControllerBase
         [MinLength(1)]
         [MaxLength(256)]
         string Name,
+        [MaxLength(8192)]
+        string? Description,
+        string? Content,
+        string? BackgroundImageId,
+        string? IconImageId,
+        Visibility? Visibility,
         Guid? ProjectId
     );
 
@@ -22,6 +28,12 @@ public class BroadController(BroadService broadService) : ControllerBase
         [MinLength(1)]
         [MaxLength(256)]
         string Name,
+        [MaxLength(8192)]
+        string? Description,
+        string? Content,
+        string? BackgroundImageId,
+        string? IconImageId,
+        Visibility? Visibility,
         Guid? ProjectId
     );
 
@@ -57,7 +69,15 @@ public class BroadController(BroadService broadService) : ControllerBase
 
         try
         {
-            var broad = await broadService.CreateBroadAsync(request.Name, request.ProjectId);
+            var broad = await broadService.CreateBroadAsync(
+                request.Name,
+                request.ProjectId,
+                request.Description,
+                request.Content,
+                request.BackgroundImageId,
+                request.IconImageId,
+                request.Visibility
+            );
             return CreatedAtAction(
                 nameof(GetBroad),
                 new { broadId = broad.Id },
@@ -79,7 +99,16 @@ public class BroadController(BroadService broadService) : ControllerBase
 
         try
         {
-            var broad = await broadService.UpdateBroadAsync(broadId, request.Name, request.ProjectId);
+            var broad = await broadService.UpdateBroadAsync(
+                broadId,
+                request.Name,
+                request.ProjectId,
+                request.Description,
+                request.Content,
+                request.BackgroundImageId,
+                request.IconImageId,
+                request.Visibility
+            );
             return Ok(broad);
         }
         catch (KeyNotFoundException)

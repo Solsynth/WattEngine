@@ -19,7 +19,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         var project = new WtProject
         {
             Name = name,
-            CreatorAccountId = accountId
+            AccountId = accountId
         };
         db.Projects.Add(project);
         await db.SaveChangesAsync();
@@ -35,7 +35,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
     {
         var accountId = GetCurrentAccountId();
         return await db.Projects
-            .Where(p => p.CreatorAccountId == accountId || p.Members.Any(m => m.AccountId == accountId))
+            .Where(p => p.AccountId == accountId || p.Members.Any(m => m.AccountId == accountId))
             .ToListAsync();
     }
 
@@ -44,7 +44,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         var accountId = GetCurrentAccountId();
         return await db.Projects
             .Include(p => p.Members)
-            .FirstOrDefaultAsync(p => p.Id == projectId && (p.CreatorAccountId == accountId || p.Members.Any(m => m.AccountId == accountId)));
+            .FirstOrDefaultAsync(p => p.Id == projectId && (p.AccountId == accountId || p.Members.Any(m => m.AccountId == accountId)));
     }
 
     public async global::System.Threading.Tasks.Task<WtProject> UpdateProjectAsync(Guid projectId, string name)
@@ -57,7 +57,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         if (project == null) throw new KeyNotFoundException("Project not found");
         
         // Check access
-        if (project.CreatorAccountId != accountId && !project.Members.Any(m => m.AccountId == accountId))
+        if (project.AccountId != accountId && !project.Members.Any(m => m.AccountId == accountId))
             throw new UnauthorizedAccessException("No access to project");
 
         var changedProperties = new List<string>();
@@ -73,7 +73,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
             
             var packet = webSocketService.CreateProjectUpdatedPacket(project, changedProperties, accountId);
             var userIds = project.Members.Select(m => m.AccountId.ToString()).ToList();
-            userIds.Add(project.CreatorAccountId.ToString());
+            userIds.Add(project.AccountId.ToString());
             
             await webSocketService.SendToUsersAsync(userIds.Distinct().ToList(), packet);
         }
@@ -91,7 +91,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         if (project == null) throw new KeyNotFoundException("Project not found");
         
         // Check access - only creator can delete
-        if (project.CreatorAccountId != accountId)
+        if (project.AccountId != accountId)
             throw new UnauthorizedAccessException("Only project creator can delete project");
 
         db.Projects.Remove(project);
@@ -103,7 +103,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
             accountId
         );
         var userIds = project.Members.Select(m => m.AccountId.ToString()).ToList();
-        userIds.Add(project.CreatorAccountId.ToString());
+        userIds.Add(project.AccountId.ToString());
         
         await webSocketService.SendToUsersAsync(userIds.Distinct().ToList(), packet);
     }
@@ -118,7 +118,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         if (project == null) throw new KeyNotFoundException("Project not found");
         
         // Check access - only creator can add members
-        if (project.CreatorAccountId != accountId)
+        if (project.AccountId != accountId)
             throw new UnauthorizedAccessException("Only project creator can add members");
             
         if (project.Members.Any(m => m.AccountId == memberAccountId)) throw new InvalidOperationException("Member already exists");
@@ -140,7 +140,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
             accountId
         );
         var userIds = project.Members.Select(m => m.AccountId.ToString()).ToList();
-        userIds.Add(project.CreatorAccountId.ToString());
+        userIds.Add(project.AccountId.ToString());
         userIds.Add(memberAccountId.ToString()); // Also notify the new member
         
         await webSocketService.SendToUsersAsync(userIds.Distinct().ToList(), packet);
@@ -156,7 +156,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
         if (project == null) throw new KeyNotFoundException("Project not found");
         
         // Check access - only creator can remove members
-        if (project.CreatorAccountId != accountId)
+        if (project.AccountId != accountId)
             throw new UnauthorizedAccessException("Only project creator can remove members");
             
         var member = project.Members.FirstOrDefault(m => m.AccountId == memberAccountId);
@@ -172,7 +172,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
             accountId
         );
         var userIds = project.Members.Select(m => m.AccountId.ToString()).ToList();
-        userIds.Add(project.CreatorAccountId.ToString());
+        userIds.Add(project.AccountId.ToString());
         userIds.Add(memberAccountId.ToString()); // Also notify the removed member
         
         await webSocketService.SendToUsersAsync(userIds.Distinct().ToList(), packet);

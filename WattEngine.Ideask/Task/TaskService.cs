@@ -37,7 +37,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         if (broad == null) throw new KeyNotFoundException("Broad not found");
 
         // Check access to broad
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.CreatorAccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
             throw new UnauthorizedAccessException("No access to broad");
 
         if (parentTaskId.HasValue)
@@ -79,7 +79,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId);
         if (broad == null) throw new KeyNotFoundException("Broad not found");
 
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.CreatorAccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
             throw new UnauthorizedAccessException("No access to broad");
 
         return await db.Tasks
@@ -97,7 +97,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         if (task == null) return null;
 
         var broad = task.Broad;
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.CreatorAccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
             throw new UnauthorizedAccessException("No access to task");
 
         return task;
@@ -123,7 +123,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
 
         // Check access
         var broad = task.Broad;
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.CreatorAccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
             throw new UnauthorizedAccessException("No access to task");
 
         var changedProperties = new List<string>();
@@ -202,7 +202,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
 
         // Check access
         var broad = task.Broad;
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.CreatorAccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
             throw new UnauthorizedAccessException("No access to task");
 
         db.Tasks.Remove(task);
@@ -231,7 +231,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
 
         var accountId = GetCurrentAccountId();
         var broad = task.Broad;
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.CreatorAccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
             throw new UnauthorizedAccessException("No access to task");
 
         var validMembers = broad.Project?.Members.Select(m => m.AccountId).ToList() ?? new List<Guid>();
@@ -281,7 +281,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
 
         // Check access
         var broad = task.Broad;
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.CreatorAccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
             throw new UnauthorizedAccessException("No access to task");
 
         var assignee = task.Assignees.FirstOrDefault(a => a.AccountId == assigneeAccountId);
