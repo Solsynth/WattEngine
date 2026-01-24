@@ -2,9 +2,8 @@ using System.ComponentModel.DataAnnotations;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WattEngine.Ideask.Broad;
 
-namespace WattEngine.Ideask.Controllers;
+namespace WattEngine.Ideask.Broad;
 
 [ApiController]
 [Route("/api/projects")]
