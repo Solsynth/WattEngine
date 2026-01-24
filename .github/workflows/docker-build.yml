@@ -100,3 +100,6 @@ jobs:
                       ghcr.io/${{ vars.PACKAGE_OWNER }}/watt-${{ matrix.image }}:${{ steps.nbgv.outputs.SimpleVersion }}
                       ghcr.io/${{ vars.PACKAGE_OWNER }}/watt-${{ matrix.image }}:latest
                   platforms: linux/amd64
+                  secrets: |
+                      nuget_username=${{ secrets.NUGET_USERNAME }}
+                      nuget_password=${{ secrets.NUGET_PASSWORD }}

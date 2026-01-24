@@ -8,6 +8,11 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["WattEngine.Ideask/WattEngine.Ideask.csproj", "WattEngine.Ideask/"]
+
+RUN --mount=type=secret,id=nuget_username,env=NUGET_USERNAME
+RUN --mount=type=secret,id=nuget_password,env=NUGET_PASSWORD
+RUN dotnet nuget add source --name solsynth --username $NUGET_USERNAME --password $NUGET_PASSWORD https://git.solsynth.dev/api/packages/SolarNetwork/nuget/index.json
+
 RUN dotnet restore "WattEngine.Ideask/WattEngine.Ideask.csproj"
 COPY . .
 WORKDIR "/src/WattEngine.Ideask"
