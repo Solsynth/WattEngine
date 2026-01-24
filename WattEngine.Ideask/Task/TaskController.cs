@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
+using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,13 +9,20 @@ namespace WattEngine.Ideask.Task;
 
 [ApiController]
 [Route("/api")]
-public class TaskController(TaskService taskService) : ControllerBase
+public class TaskController(TaskService taskService, FileService.FileServiceClient files) : ControllerBase
 {
     public record CreateTaskRequest(
         [Required]
         [MinLength(1)]
         [MaxLength(1024)]
         string Name,
+        [MaxLength(8192)]
+        string? Description,
+        string? Content,
+        List<string>? AttachmentIds,
+        [Range(0, int.MaxValue)]
+        int Priority,
+        NodaTime.Instant? DeadlineAt,
         Guid? ParentTaskId,
         List<Guid>? AssigneeAccountIds
     );
@@ -23,6 +32,13 @@ public class TaskController(TaskService taskService) : ControllerBase
         [MinLength(1)]
         [MaxLength(1024)]
         string Name,
+        [MaxLength(8192)]
+        string? Description,
+        string? Content,
+        List<string>? AttachmentIds,
+        [Range(0, int.MaxValue)]
+        int? Priority,
+        NodaTime.Instant? DeadlineAt,
         TaskCompleteReason? CompleteReason
     );
 
@@ -77,7 +93,31 @@ public class TaskController(TaskService taskService) : ControllerBase
 
         try
         {
-            var task = await taskService.CreateTaskAsync(broadId, request.Name, request.ParentTaskId, request.AssigneeAccountIds);
+            // Convert attachment IDs to SnCloudFileReferenceObject
+            List<SnCloudFileReferenceObject>? attachments = null;
+            if (request.AttachmentIds is not null && request.AttachmentIds.Any())
+            {
+                attachments = new List<SnCloudFileReferenceObject>();
+                foreach (var attachmentId in request.AttachmentIds)
+                {
+                    var file = await files.GetFileAsync(new GetFileRequest { Id = attachmentId });
+                    if (file is null)
+                        return BadRequest($"Attachment file with ID {attachmentId.ToString()} not found");
+                    attachments.Add(SnCloudFileReferenceObject.FromProtoValue(file));
+                }
+            }
+
+            var task = await taskService.CreateTaskAsync(
+                broadId,
+                request.Name,
+                request.Description,
+                request.Content,
+                attachments,
+                request.Priority,
+                request.DeadlineAt,
+                request.ParentTaskId,
+                request.AssigneeAccountIds
+            );
             return CreatedAtAction(
                 nameof(GetTask),
                 new { taskId = task.Id },
@@ -107,7 +147,30 @@ public class TaskController(TaskService taskService) : ControllerBase
 
         try
         {
-            var task = await taskService.UpdateTaskAsync(taskId, request.Name, request.CompleteReason);
+            // Convert attachment IDs to SnCloudFileReferenceObject
+            List<SnCloudFileReferenceObject>? attachments = null;
+            if (request.AttachmentIds is not null && request.AttachmentIds.Any())
+            {
+                attachments = [];
+                foreach (var attachmentId in request.AttachmentIds)
+                {
+                    var file = await files.GetFileAsync(new GetFileRequest { Id = attachmentId });
+                    if (file is null)
+                        return BadRequest($"Attachment file with ID {attachmentId.ToString()} not found");
+                    attachments.Add(SnCloudFileReferenceObject.FromProtoValue(file));
+                }
+            }
+
+            var task = await taskService.UpdateTaskAsync(
+                taskId,
+                request.Name,
+                request.Description,
+                request.Content,
+                attachments,
+                request.Priority,
+                request.DeadlineAt,
+                request.CompleteReason
+            );
             return Ok(task);
         }
         catch (KeyNotFoundException)

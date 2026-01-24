@@ -1,3 +1,5 @@
+using DysonNetwork.Shared;
+using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
@@ -16,7 +18,16 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         return Guid.Parse(currentUser.Id);
     }
 
-    public async global::System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> CreateTaskAsync(Guid broadId, string name, Guid? parentTaskId, List<Guid>? assigneeAccountIds)
+    public async global::System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> CreateTaskAsync(
+        Guid broadId,
+        string name,
+        string? description,
+        string? content,
+        List<SnCloudFileReferenceObject>? attachments,
+        int priority,
+        NodaTime.Instant? deadlineAt,
+        Guid? parentTaskId,
+        List<Guid>? assigneeAccountIds)
     {
         var accountId = GetCurrentAccountId();
         var broad = await db.Broads
@@ -38,6 +49,11 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         var task = new WattEngine.Ideask.Task.WtTask
         {
             Name = name,
+            Description = description,
+            Content = content,
+            Attachments = attachments ?? new List<SnCloudFileReferenceObject>(),
+            Priority = priority,
+            DeadlineAt = deadlineAt,
             BroadId = broadId,
             ParentTaskId = parentTaskId
         };
@@ -87,7 +103,15 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         return task;
     }
 
-    public async global::System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> UpdateTaskAsync(Guid taskId, string name, WattEngine.Ideask.Task.TaskCompleteReason? completeReason)
+    public async global::System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> UpdateTaskAsync(
+        Guid taskId,
+        string name,
+        string? description,
+        string? content,
+        List<SnCloudFileReferenceObject>? attachments,
+        int? priority,
+        NodaTime.Instant? deadlineAt,
+        WattEngine.Ideask.Task.TaskCompleteReason? completeReason)
     {
         var accountId = GetCurrentAccountId();
         var task = await db.Tasks
@@ -108,12 +132,42 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
             task.Name = name;
             changedProperties.Add("name");
         }
-        
+
+        if (task.Description != description)
+        {
+            task.Description = description;
+            changedProperties.Add("description");
+        }
+
+        if (task.Content != content)
+        {
+            task.Content = content;
+            changedProperties.Add("content");
+        }
+
+        if (attachments != null && !attachments.SequenceEqual(task.Attachments))
+        {
+            task.Attachments = attachments;
+            changedProperties.Add("attachments");
+        }
+
+        if (priority.HasValue && task.Priority != priority.Value)
+        {
+            task.Priority = priority.Value;
+            changedProperties.Add("priority");
+        }
+
+        if (task.DeadlineAt != deadlineAt)
+        {
+            task.DeadlineAt = deadlineAt;
+            changedProperties.Add("deadline_at");
+        }
+
         if (task.CompleteReason != completeReason)
         {
             task.CompleteReason = completeReason;
             changedProperties.Add("complete_reason");
-            if (completeReason.HasValue) 
+            if (completeReason.HasValue)
             {
                 task.CompletedAt = SystemClock.Instance.GetCurrentInstant();
                 changedProperties.Add("completed_at");
