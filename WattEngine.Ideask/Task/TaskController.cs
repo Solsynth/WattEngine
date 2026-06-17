@@ -100,7 +100,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
                 attachments = new List<SnCloudFileReferenceObject>();
                 foreach (var attachmentId in request.AttachmentIds)
                 {
-                    var file = await files.GetFileAsync(new GetFileRequest { Id = attachmentId });
+                    var file = await files.GetFileAsync(new DyGetFileRequest { Id = attachmentId });
                     if (file is null)
                         return BadRequest($"Attachment file with ID {attachmentId.ToString()} not found");
                     attachments.Add(SnCloudFileReferenceObject.FromProtoValue(file));
@@ -154,7 +154,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
                 attachments = [];
                 foreach (var attachmentId in request.AttachmentIds)
                 {
-                    var file = await files.GetFileAsync(new GetFileRequest { Id = attachmentId });
+                    var file = await files.GetFileAsync(new DyGetFileRequest { Id = attachmentId });
                     if (file is null)
                         return BadRequest($"Attachment file with ID {attachmentId.ToString()} not found");
                     attachments.Add(SnCloudFileReferenceObject.FromProtoValue(file));

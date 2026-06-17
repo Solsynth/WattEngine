@@ -15,7 +15,7 @@ public class BroadService(
     {
         return httpContextAccessor.HttpContext?.Items["CurrentUser"] is not SnAccount currentUser
             ? throw new UnauthorizedAccessException("User not authenticated")
-            : Guid.Parse(currentUser.Id);
+            : currentUser.Id;
     }
 
     public async Task<WtBroad> CreateBroadAsync(string name, Guid? projectId,

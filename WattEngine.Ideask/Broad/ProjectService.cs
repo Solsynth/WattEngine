@@ -1,3 +1,4 @@
+using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.EntityFrameworkCore;
 using WattEngine.Ideask.Connectivity;
@@ -10,7 +11,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
     {
         var currentUser = httpContextAccessor.HttpContext?.Items["CurrentUser"] as SnAccount;
         if (currentUser == null) throw new UnauthorizedAccessException("User not authenticated");
-        return Guid.Parse(currentUser.Id);
+        return currentUser.Id;
     }
 
     public async System.Threading.Tasks.Task<WtProject> CreateProjectAsync(string name)

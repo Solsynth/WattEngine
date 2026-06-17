@@ -36,7 +36,7 @@ public class ProjectController(ProjectService projectService) : ControllerBase
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
-        var accountId = Guid.Parse(currentUser.Id);
+        var accountId = currentUser.Id;
         var projects = await projectService.GetProjectsAsync();
         return Ok(projects);
     }
@@ -48,7 +48,7 @@ public class ProjectController(ProjectService projectService) : ControllerBase
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
-        var accountId = Guid.Parse(currentUser.Id);
+        var accountId = currentUser.Id;
         var project = await projectService.GetProjectAsync(projectId);
         if (project == null) return NotFound("Project not found or no access");
         return Ok(project);

@@ -15,7 +15,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
     {
         var currentUser = httpContextAccessor.HttpContext?.Items["CurrentUser"] as SnAccount;
         if (currentUser == null) throw new UnauthorizedAccessException("User not authenticated");
-        return Guid.Parse(currentUser.Id);
+        return currentUser.Id;
     }
 
     public async System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> CreateTaskAsync(

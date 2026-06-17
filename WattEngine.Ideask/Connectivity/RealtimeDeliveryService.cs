@@ -27,11 +27,14 @@ public class RealtimeDeliveryService(
             // This method will be called from services that have database access
             // The actual implementation will be in the specific services
             
-            await ringService.PushWebSocketPacketToUsers(
-                new List<string>(), // Will be filled by calling service
-                webSocketPacket.Type,
-                packetBytes
-            );
+            foreach (var userId in new List<string>()) // Will be filled by calling service
+            {
+                await ringService.SendWebSocketPacketToUser(
+                    userId,
+                    webSocketPacket.Type,
+                    packetBytes
+                );
+            }
         }
         catch (Exception ex)
         {
@@ -50,11 +53,14 @@ public class RealtimeDeliveryService(
             var webSocketPacket = packet.ToWebSocketPacket();
             var packetBytes = webSocketPacket.ToBytes();
 
-            await ringService.PushWebSocketPacketToUsers(
-                userIds,
-                webSocketPacket.Type,
-                packetBytes
-            );
+            foreach (var userId in userIds)
+            {
+                await ringService.SendWebSocketPacketToUser(
+                    userId,
+                    webSocketPacket.Type,
+                    packetBytes
+                );
+            }
         }
         catch (Exception ex)
         {
