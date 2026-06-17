@@ -1,0 +1,3 @@
+[submodule "NeTo"]
+	path = NeTo
+	url = https://src.solsynth.dev/SoSYS/NeTo.git
