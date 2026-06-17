@@ -8,6 +8,8 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["WattEngine.Ideask/WattEngine.Ideask.csproj", "WattEngine.Ideask/"]
+COPY ["NeTo/DysonNetwork.Shared.csproj", "NeTo/"]
+COPY ["NeTo/Directory.Packages.props", "NeTo/"]
 
 RUN dotnet restore "WattEngine.Ideask/WattEngine.Ideask.csproj"
 COPY . .
