@@ -9,7 +9,7 @@ namespace WattEngine.Ideask.Task;
 
 [ApiController]
 [Route("/api")]
-public class TaskController(TaskService taskService, FileService.FileServiceClient files) : ControllerBase
+public class TaskController(TaskService taskService, DyFileService.DyFileServiceClient files) : ControllerBase
 {
     public record CreateTaskRequest(
         [Required]
@@ -50,7 +50,7 @@ public class TaskController(TaskService taskService, FileService.FileServiceClie
     [Authorize]
     public async Task<IActionResult> ListTasks([FromRoute] Guid broadId)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -76,7 +76,7 @@ public class TaskController(TaskService taskService, FileService.FileServiceClie
     [Authorize]
     public async Task<IActionResult> GetTask([FromRoute] Guid taskId)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         var task = await taskService.GetTaskAsync(taskId);
@@ -88,7 +88,7 @@ public class TaskController(TaskService taskService, FileService.FileServiceClie
     [Authorize]
     public async Task<IActionResult> CreateTask([FromRoute] Guid broadId, [FromBody] CreateTaskRequest request)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -142,7 +142,7 @@ public class TaskController(TaskService taskService, FileService.FileServiceClie
     [Authorize]
     public async Task<IActionResult> UpdateTask([FromRoute] Guid taskId, [FromBody] UpdateTaskRequest request)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -191,7 +191,7 @@ public class TaskController(TaskService taskService, FileService.FileServiceClie
     [Authorize]
     public async Task<IActionResult> DeleteTask([FromRoute] Guid taskId)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -217,7 +217,7 @@ public class TaskController(TaskService taskService, FileService.FileServiceClie
     [Authorize]
     public async Task<IActionResult> AssignTask([FromRoute] Guid taskId, [FromBody] AssignTaskRequest request)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -247,7 +247,7 @@ public class TaskController(TaskService taskService, FileService.FileServiceClie
     [Authorize]
     public async Task<IActionResult> UnassignTask([FromRoute] Guid taskId, [FromRoute] Guid assigneeAccountId)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try

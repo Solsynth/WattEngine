@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -32,7 +33,7 @@ public class ProjectController(ProjectService projectService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> ListProjects()
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         var accountId = Guid.Parse(currentUser.Id);
@@ -44,7 +45,7 @@ public class ProjectController(ProjectService projectService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetProject([FromRoute] Guid projectId)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         var accountId = Guid.Parse(currentUser.Id);
@@ -57,7 +58,7 @@ public class ProjectController(ProjectService projectService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> CreateProject([FromBody] CreateProjectRequest request)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -79,7 +80,7 @@ public class ProjectController(ProjectService projectService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> UpdateProject([FromRoute] Guid projectId, [FromBody] UpdateProjectRequest request)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -101,7 +102,7 @@ public class ProjectController(ProjectService projectService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> DeleteProject([FromRoute] Guid projectId)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -123,7 +124,7 @@ public class ProjectController(ProjectService projectService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> AddMember([FromRoute] Guid projectId, [FromBody] AddMemberRequest request)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -149,7 +150,7 @@ public class ProjectController(ProjectService projectService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> RemoveMember([FromRoute] Guid projectId, [FromRoute] Guid memberAccountId)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try

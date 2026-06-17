@@ -13,7 +13,7 @@ public class BroadService(
 {
     private Guid GetCurrentAccountId()
     {
-        return httpContextAccessor.HttpContext?.Items["CurrentUser"] is not Account currentUser
+        return httpContextAccessor.HttpContext?.Items["CurrentUser"] is not SnAccount currentUser
             ? throw new UnauthorizedAccessException("User not authenticated")
             : Guid.Parse(currentUser.Id);
     }

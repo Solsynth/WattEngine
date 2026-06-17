@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -41,7 +42,7 @@ public class BroadController(BroadService broadService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> ListBroads()
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         var broads = await broadService.GetBroadsAsync();
@@ -52,7 +53,7 @@ public class BroadController(BroadService broadService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetBroad([FromRoute] Guid broadId)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         var broad = await broadService.GetBroadAsync(broadId);
@@ -64,7 +65,7 @@ public class BroadController(BroadService broadService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> CreateBroad([FromBody] CreateBroadRequest request)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -94,7 +95,7 @@ public class BroadController(BroadService broadService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> UpdateBroad([FromRoute] Guid broadId, [FromBody] UpdateBroadRequest request)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
@@ -125,7 +126,7 @@ public class BroadController(BroadService broadService) : ControllerBase
     [Authorize]
     public async Task<IActionResult> DeleteBroad([FromRoute] Guid broadId)
     {
-        if (HttpContext.Items["CurrentUser"] is not Account currentUser)
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try

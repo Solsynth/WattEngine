@@ -8,7 +8,7 @@ public class ProjectService(AppDatabase db, IHttpContextAccessor httpContextAcce
 {
     private Guid GetCurrentAccountId()
     {
-        var currentUser = httpContextAccessor.HttpContext?.Items["CurrentUser"] as Account;
+        var currentUser = httpContextAccessor.HttpContext?.Items["CurrentUser"] as SnAccount;
         if (currentUser == null) throw new UnauthorizedAccessException("User not authenticated");
         return Guid.Parse(currentUser.Id);
     }
