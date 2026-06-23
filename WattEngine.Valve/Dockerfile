@@ -10,6 +10,7 @@ WORKDIR /src
 COPY ["WattEngine.Valve/WattEngine.Valve.csproj", "WattEngine.Valve/"]
 COPY ["DysonNetwork.Shared/DysonNetwork.Shared.csproj", "DysonNetwork.Shared/"]
 COPY ["DysonNetwork.Shared/Directory.Packages.props", "DysonNetwork.Shared/"]
+COPY ["Directory.Packages.props", "./"]
 
 RUN dotnet restore "WattEngine.Valve/WattEngine.Valve.csproj"
 COPY . .
