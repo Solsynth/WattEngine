@@ -18,6 +18,7 @@ public class AppDatabase(
     public DbSet<WtWorkspaceMember> WorkspaceMembers { get; set; } = null!;
     public DbSet<WtWorkspaceRolePermission> WorkspaceRolePermissions { get; set; } = null!;
     public DbSet<WtWorkspaceUserPermission> WorkspaceUserPermissions { get; set; } = null!;
+    public DbSet<WtWorkspaceBundledPlan> WorkspaceBundledPlans { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -52,6 +53,11 @@ public class AppDatabase(
             .HasMany(w => w.UserPermissions)
             .WithOne(p => p.Workspace)
             .HasForeignKey(p => p.WorkspaceId);
+
+        modelBuilder.Entity<WtWorkspace>()
+            .HasMany(w => w.BundledPlans)
+            .WithOne(b => b.Workspace)
+            .HasForeignKey(b => b.WorkspaceId);
 
         // Unique indexes
         modelBuilder.Entity<WtWorkspaceRolePermission>()

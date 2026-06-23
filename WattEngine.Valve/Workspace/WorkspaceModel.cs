@@ -35,10 +35,13 @@ public class WtWorkspace : ModelBase
 
     public WorkspacePlan Plan { get; set; } = WorkspacePlan.Free;
     public Instant? PlanExpiresAt { get; set; }
+    public Guid? ActiveOrderId { get; set; }
+    public bool IsBundled { get; set; }
 
     [JsonIgnore] public List<WtWorkspaceMember> Members { get; set; } = [];
     [JsonIgnore] public List<WtWorkspaceRolePermission> RolePermissions { get; set; } = [];
     [JsonIgnore] public List<WtWorkspaceUserPermission> UserPermissions { get; set; } = [];
+    [JsonIgnore] public List<WtWorkspaceBundledPlan> BundledPlans { get; set; } = [];
 }
 
 public static class WorkspaceMemberRole
@@ -139,4 +142,32 @@ public static class WorkspacePlanQuota
         WorkspacePlan.Enterprise => 100L * 1024 * 1024 * 1024, // 100 GB
         _ => 1024L * 1024 * 1024
     };
+}
+
+public static class WorkspacePlanPricing
+{
+    public const string ProductIdentifierPro = "watt.workspace.plan.pro";
+    public const string ProductIdentifierEnterprise = "watt.workspace.plan.enterprise";
+    public static readonly Duration ReassignCooldown = Duration.FromDays(7);
+    public const int BundledPlanRequiredPerkLevel = 3;
+
+    public static decimal GetMonthlyPrice(WorkspacePlan plan) => plan switch
+    {
+        WorkspacePlan.Pro => 100m,
+        WorkspacePlan.Enterprise => 500m,
+        _ => 0m
+    };
+}
+
+[Index(nameof(AccountId))]
+[Index(nameof(WorkspaceId))]
+public class WtWorkspaceBundledPlan : ModelBase
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid AccountId { get; set; }
+    public Guid WorkspaceId { get; set; }
+    [JsonIgnore] public WtWorkspace Workspace { get; set; } = null!;
+    public bool IsEnabled { get; set; } = true;
+    public Instant? DisabledAt { get; set; }
+    public Instant? LastReassignedAt { get; set; }
 }

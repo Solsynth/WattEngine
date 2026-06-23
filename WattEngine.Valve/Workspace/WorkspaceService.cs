@@ -1,6 +1,7 @@
 using DysonNetwork.Shared.Cache;
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
+using DysonNetwork.Shared.Registry;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 
@@ -9,7 +10,8 @@ namespace WattEngine.Valve.Workspace;
 public class WorkspaceService(
     AppDatabase db,
     ICacheService cache,
-    DyAccountService.DyAccountServiceClient accountGrpc
+    DyAccountService.DyAccountServiceClient accountGrpc,
+    RemotePaymentService payments
 )
 {
     private const string CacheKeyPrefix = "workspace:";
@@ -239,4 +241,158 @@ public class WorkspaceService(
         var cacheKey = $"{CacheKeyPrefix}user:{accountId}";
         await cache.RemoveAsync(cacheKey);
     }
+
+    #region Bundled Plans
+
+    public async Task<WtWorkspaceBundledPlan?> GetBundledPlan(Guid accountId)
+    {
+        return await db.WorkspaceBundledPlans
+            .Include(b => b.Workspace)
+            .FirstOrDefaultAsync(b => b.AccountId == accountId && b.DeletedAt == null);
+    }
+
+    public async Task<WtWorkspaceBundledPlan> AssignBundledPlan(Guid accountId, Guid workspaceId)
+    {
+        var workspace = await GetById(workspaceId)
+            ?? throw new InvalidOperationException("Workspace not found.");
+
+        if (workspace.OwnerAccountId != accountId)
+            throw new InvalidOperationException("Only the workspace owner can assign a bundled plan.");
+
+        var existing = await db.WorkspaceBundledPlans
+            .FirstOrDefaultAsync(b => b.AccountId == accountId && b.DeletedAt == null);
+
+        if (existing != null)
+        {
+            if (existing.IsEnabled && existing.WorkspaceId == workspaceId)
+                throw new InvalidOperationException("Bundled plan already assigned to this workspace.");
+
+            if (!existing.IsEnabled)
+            {
+                // Re-enabling to same or different workspace
+                existing.IsEnabled = true;
+                existing.DisabledAt = null;
+                existing.WorkspaceId = workspaceId;
+            }
+            else
+            {
+                // Reassigning to different workspace - check cooldown
+                if (existing.LastReassignedAt.HasValue)
+                {
+                    var cooldownEnd = existing.LastReassignedAt.Value + WorkspacePlanPricing.ReassignCooldown;
+                    var now = SystemClock.Instance.GetCurrentInstant();
+                    if (now < cooldownEnd)
+                        throw new InvalidOperationException($"Cooldown active until {cooldownEnd}. Cannot reassign yet.");
+                }
+
+                // Revert old workspace to Free
+                var oldWorkspace = await GetById(existing.WorkspaceId);
+                if (oldWorkspace != null && oldWorkspace.IsBundled)
+                {
+                    oldWorkspace.Plan = WorkspacePlan.Free;
+                    oldWorkspace.PlanExpiresAt = null;
+                    oldWorkspace.IsBundled = false;
+                }
+
+                existing.WorkspaceId = workspaceId;
+                existing.LastReassignedAt = SystemClock.Instance.GetCurrentInstant();
+            }
+
+            db.WorkspaceBundledPlans.Update(existing);
+            workspace.Plan = WorkspacePlan.Pro;
+            workspace.IsBundled = true;
+            db.Workspaces.Update(workspace);
+            await db.SaveChangesAsync();
+            return existing;
+        }
+
+        // First time assignment
+        var bundledPlan = new WtWorkspaceBundledPlan
+        {
+            AccountId = accountId,
+            WorkspaceId = workspaceId,
+            IsEnabled = true
+        };
+        db.WorkspaceBundledPlans.Add(bundledPlan);
+
+        workspace.Plan = WorkspacePlan.Pro;
+        workspace.IsBundled = true;
+        db.Workspaces.Update(workspace);
+
+        await db.SaveChangesAsync();
+        return bundledPlan;
+    }
+
+    public async Task UnassignBundledPlan(Guid accountId)
+    {
+        var bundledPlan = await db.WorkspaceBundledPlans
+            .FirstOrDefaultAsync(b => b.AccountId == accountId && b.IsEnabled && b.DeletedAt == null)
+            ?? throw new InvalidOperationException("No active bundled plan found.");
+
+        bundledPlan.IsEnabled = false;
+        bundledPlan.DisabledAt = SystemClock.Instance.GetCurrentInstant();
+        db.WorkspaceBundledPlans.Update(bundledPlan);
+
+        // Revert workspace to Free
+        var workspace = await GetById(bundledPlan.WorkspaceId);
+        if (workspace != null && workspace.IsBundled)
+        {
+            workspace.Plan = WorkspacePlan.Free;
+            workspace.PlanExpiresAt = null;
+            workspace.IsBundled = false;
+            db.Workspaces.Update(workspace);
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    #endregion
+
+    #region Plan Orders
+
+    public async Task<DyOrder> CreatePlanOrder(Guid workspaceId, Guid accountId, WorkspacePlan plan)
+    {
+        if (plan == WorkspacePlan.Free)
+            throw new InvalidOperationException("Cannot subscribe to Free plan.");
+
+        var amount = WorkspacePlanPricing.GetMonthlyPrice(plan);
+        var productIdentifier = plan switch
+        {
+            WorkspacePlan.Pro => WorkspacePlanPricing.ProductIdentifierPro,
+            WorkspacePlan.Enterprise => WorkspacePlanPricing.ProductIdentifierEnterprise,
+            _ => throw new ArgumentException("Invalid plan.")
+        };
+
+        var meta = new Dictionary<string, object?>
+        {
+            ["workspace_id"] = workspaceId,
+            ["account_id"] = accountId,
+            ["plan"] = (int)plan
+        };
+
+        return await payments.CreateOrder(
+            currency: WalletCurrency.GoldenPoint,
+            amount: amount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            productIdentifier: productIdentifier,
+            appIdentifier: "wattengine",
+            remarks: $"Workspace {plan} plan",
+            meta: System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(meta)
+        );
+    }
+
+    public async Task ActivatePlan(Guid workspaceId, Guid orderId, WorkspacePlan plan)
+    {
+        var workspace = await GetById(workspaceId)
+            ?? throw new InvalidOperationException("Workspace not found.");
+
+        workspace.Plan = plan;
+        workspace.ActiveOrderId = orderId;
+        workspace.IsBundled = false;
+        workspace.PlanExpiresAt = SystemClock.Instance.GetCurrentInstant() + Duration.FromDays(30);
+
+        db.Workspaces.Update(workspace);
+        await db.SaveChangesAsync();
+    }
+
+    #endregion
 }

@@ -4,6 +4,7 @@ using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NodaTime;
 
 namespace WattEngine.Valve.Workspace;
 
@@ -38,6 +39,16 @@ public class WorkspaceController(
     public class UpdateMemberRoleRequest
     {
         [Required] public int Role { get; set; }
+    }
+
+    public class SubscribePlanRequest
+    {
+        [Required] public WorkspacePlan Plan { get; set; }
+    }
+
+    public class ReassignBundledPlanRequest
+    {
+        [Required] public Guid WorkspaceId { get; set; }
     }
 
     [HttpGet]
@@ -198,6 +209,139 @@ public class WorkspaceController(
         {
             await ws.RemoveMember(workspace.Id, accountId);
             return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    // Plan management endpoints
+
+    [HttpGet("{slug}/plan/status")]
+    [Authorize]
+    public async Task<ActionResult<object>> GetPlanStatus(string slug)
+    {
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
+
+        var workspace = await ws.GetBySlug(slug);
+        if (workspace is null) return NotFound();
+
+        if (!await ws.IsMemberWithRole(workspace.Id, currentUser.Id, WorkspaceMemberRole.Viewer))
+            return StatusCode(403, "Insufficient permissions.");
+
+        var bundledPlan = await ws.GetBundledPlan(currentUser.Id);
+
+        return Ok(new
+        {
+            workspace.Plan,
+            workspace.PlanExpiresAt,
+            workspace.IsBundled,
+            bundled_plan = bundledPlan != null ? new
+            {
+                bundledPlan.IsEnabled,
+                workspace_id = bundledPlan.WorkspaceId,
+                bundledPlan.LastReassignedAt,
+                cooldown_active = bundledPlan.LastReassignedAt.HasValue &&
+                    SystemClock.Instance.GetCurrentInstant() < bundledPlan.LastReassignedAt.Value + WorkspacePlanPricing.ReassignCooldown
+            } : null,
+            prices = new
+            {
+                pro = WorkspacePlanPricing.GetMonthlyPrice(WorkspacePlan.Pro),
+                enterprise = WorkspacePlanPricing.GetMonthlyPrice(WorkspacePlan.Enterprise),
+                currency = "golds"
+            }
+        });
+    }
+
+    [HttpPost("{slug}/plan/assign-bundled")]
+    [Authorize]
+    public async Task<ActionResult<object>> AssignBundledPlan(string slug)
+    {
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
+
+        var workspace = await ws.GetBySlug(slug);
+        if (workspace is null) return NotFound();
+
+        if (workspace.OwnerAccountId != currentUser.Id)
+            return StatusCode(403, "Only the workspace owner can assign a bundled plan.");
+
+        if (currentUser.PerkLevel < WorkspacePlanPricing.BundledPlanRequiredPerkLevel)
+            return BadRequest($"Perk level {WorkspacePlanPricing.BundledPlanRequiredPerkLevel}+ required for bundled Pro plan.");
+
+        try
+        {
+            var result = await ws.AssignBundledPlan(currentUser.Id, workspace.Id);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("{slug}/plan/unassign-bundled")]
+    [Authorize]
+    public async Task<IActionResult> UnassignBundledPlan(string slug)
+    {
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
+
+        var workspace = await ws.GetBySlug(slug);
+        if (workspace is null) return NotFound();
+
+        try
+        {
+            await ws.UnassignBundledPlan(currentUser.Id);
+            return Ok(new { message = "Bundled plan unassigned." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("plan/reassign-bundled")]
+    [Authorize]
+    public async Task<ActionResult<object>> ReassignBundledPlan([FromBody] ReassignBundledPlanRequest request)
+    {
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
+
+        try
+        {
+            var result = await ws.AssignBundledPlan(currentUser.Id, request.WorkspaceId);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("{slug}/plan/subscribe")]
+    [Authorize]
+    public async Task<ActionResult<object>> SubscribePlan(string slug, [FromBody] SubscribePlanRequest request)
+    {
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
+
+        var workspace = await ws.GetBySlug(slug);
+        if (workspace is null) return NotFound();
+
+        if (workspace.OwnerAccountId != currentUser.Id)
+            return StatusCode(403, "Only the owner can manage subscriptions.");
+
+        if (request.Plan == WorkspacePlan.Free)
+            return BadRequest("Cannot subscribe to Free plan. Use unassign-bundled instead.");
+
+        try
+        {
+            var order = await ws.CreatePlanOrder(workspace.Id, currentUser.Id, request.Plan);
+            return Ok(new
+            {
+                order_id = order.Id,
+                amount = order.Amount,
+                currency = order.Currency,
+                plan = request.Plan
+            });
         }
         catch (InvalidOperationException ex)
         {
