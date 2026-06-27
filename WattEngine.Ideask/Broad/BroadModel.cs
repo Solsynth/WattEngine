@@ -16,8 +16,7 @@ public enum Permission
 public enum Visibility
 {
     Private,
-    Public,
-    ProjectOnly
+    Public
 }
 
 public class WtBroad : ModelBase
@@ -25,10 +24,8 @@ public class WtBroad : ModelBase
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = null!;
     public Guid AccountId { get; set; }
-    public Guid? ProjectId { get; set; }
-    [JsonIgnore]
-    public WtProject? Project { get; set; }
-    
+    public Guid? WorkspaceId { get; set; }
+
     public Visibility Visibility { get; set; } = Visibility.Private;
     [MaxLength(8192)]
     public string? Description { get; set; }

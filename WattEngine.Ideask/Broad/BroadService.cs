@@ -9,7 +9,9 @@ namespace WattEngine.Ideask.Broad;
 public class BroadService(
     AppDatabase db,
     IHttpContextAccessor httpContextAccessor,
-    RealtimeDeliveryService webSocketService)
+    RealtimeDeliveryService webSocketService,
+    WorkspaceApiClient workspaceApi
+)
 {
     private Guid GetCurrentAccountId()
     {
@@ -18,65 +20,56 @@ public class BroadService(
             : currentUser.Id;
     }
 
-    public async Task<WtBroad> CreateBroadAsync(string name, Guid? projectId,
+    public async Task<WtBroad> CreateBroadAsync(string name, Guid? workspaceId = null,
         string? description = null, string? content = null, string? backgroundImageId = null,
         string? iconImageId = null, Visibility? visibility = null)
     {
         var accountId = GetCurrentAccountId();
 
-        // Convert file IDs to SnCloudFileReferenceObject
-        SnCloudFileReferenceObject? backgroundImage = null;
-        SnCloudFileReferenceObject? iconImage = null;
-
-        if (!string.IsNullOrEmpty(backgroundImageId))
+        // Check broad quota if this broad belongs to a workspace
+        if (workspaceId.HasValue)
         {
-            var file = await GetFileAsync(backgroundImageId);
-            if (file != null)
-                backgroundImage = file;
-        }
-
-        if (!string.IsNullOrEmpty(iconImageId))
-        {
-            var file = await GetFileAsync(iconImageId);
-            if (file != null)
-                iconImage = file;
+            await CheckBroadQuota(workspaceId.Value);
         }
 
         var broad = new WtBroad
         {
             Name = name,
             AccountId = accountId,
-            ProjectId = projectId,
+            WorkspaceId = workspaceId,
             Description = description,
             Content = content,
-            BackgroundImage = backgroundImage,
-            IconImage = iconImage,
             Visibility = visibility ?? Visibility.Private
         };
         db.Broads.Add(broad);
         await db.SaveChangesAsync();
 
-        // Get project data for notification
-        WtProject? project = null;
-        if (projectId.HasValue)
-        {
-            project = await db.Projects.FindAsync(projectId.Value);
-        }
-
         // Send WebSocket notification
-        var packet = webSocketService.CreateBroadCreatedPacket(broad, project, accountId);
-        await SendWebSocketPacketToProjectMembersAsync(broad, packet);
+        var packet = webSocketService.CreateBroadCreatedPacket(broad, accountId);
+        await webSocketService.SendToUsersAsync(new List<string> { accountId.ToString() }, packet);
 
         return broad;
+    }
+
+    private async System.Threading.Tasks.Task CheckBroadQuota(Guid workspaceId)
+    {
+        var plan = await workspaceApi.GetWorkspacePlan(workspaceId);
+        var maxBroads = WorkspacePlanQuota.GetMaxBroadsPerProject(plan);
+
+        var broadCount = await db.Broads
+            .CountAsync(b => b.WorkspaceId == workspaceId && b.DeletedAt == null);
+
+        if (broadCount >= maxBroads)
+            throw new InvalidOperationException(
+                $"Workspace plan ({plan}) allows max {maxBroads} broads. Current count: {broadCount}."
+            );
     }
 
     public async Task<List<WtBroad>> GetBroadsAsync()
     {
         var accountId = GetCurrentAccountId();
         return await db.Broads
-            .Where(b => b.AccountId == accountId || (b.Project != null && (b.Project.AccountId == accountId ||
-                                                                           b.Project.Members.Any(m =>
-                                                                               m.AccountId == accountId))))
+            .Where(b => b.AccountId == accountId)
             .ToListAsync();
     }
 
@@ -84,26 +77,19 @@ public class BroadService(
     {
         var accountId = GetCurrentAccountId();
         return await db.Broads
-            .FirstOrDefaultAsync(b => b.Id == broadId && (b.AccountId == accountId || (b.Project != null &&
-                (b.Project.AccountId == accountId || b.Project.Members.Any(m => m.AccountId == accountId)))));
+            .FirstOrDefaultAsync(b => b.Id == broadId && b.AccountId == accountId);
     }
 
     public async Task<WtBroad> UpdateBroadAsync(Guid broadId, string name,
-        Guid? projectId, string? description = null, string? content = null, string? backgroundImageId = null,
+        Guid? workspaceId, string? description = null, string? content = null, string? backgroundImageId = null,
         string? iconImageId = null, Visibility? visibility = null)
     {
         var accountId = GetCurrentAccountId();
-        var broad = await db.Broads
-            .Include(b => b.Project)
-            .ThenInclude(p => p.Members)
-            .FirstOrDefaultAsync(b => b.Id == broadId);
+        var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId);
 
         if (broad == null) throw new KeyNotFoundException("Broad not found");
 
-        // Check access
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId &&
-                                                                       broad.Project.Members.All(m =>
-                                                                           m.AccountId != accountId))))
+        if (broad.AccountId != accountId)
             throw new UnauthorizedAccessException("No access to broad");
 
         var changedProperties = new List<string>();
@@ -114,10 +100,10 @@ public class BroadService(
             changedProperties.Add("name");
         }
 
-        if (broad.ProjectId != projectId)
+        if (broad.WorkspaceId != workspaceId)
         {
-            broad.ProjectId = projectId;
-            changedProperties.Add("project_id");
+            broad.WorkspaceId = workspaceId;
+            changedProperties.Add("workspace_id");
         }
 
         if (broad.Description != description)
@@ -138,52 +124,12 @@ public class BroadService(
             changedProperties.Add("visibility");
         }
 
-        // Handle background image
-        if (!string.IsNullOrEmpty(backgroundImageId))
-        {
-            var file = await GetFileAsync(backgroundImageId);
-            if (file != null)
-            {
-                if (!Equals(broad.BackgroundImage, file))
-                {
-                    broad.BackgroundImage = file;
-                    changedProperties.Add("background_image");
-                }
-            }
-        }
-        else if (backgroundImageId == "" && broad.BackgroundImage != null)
-        {
-            // Clear background image
-            broad.BackgroundImage = null;
-            changedProperties.Add("background_image");
-        }
-
-        // Handle icon image
-        if (!string.IsNullOrEmpty(iconImageId))
-        {
-            var file = await GetFileAsync(iconImageId);
-            if (file != null)
-            {
-                if (!Equals(broad.IconImage, file))
-                {
-                    broad.IconImage = file;
-                    changedProperties.Add("icon_image");
-                }
-            }
-        }
-        else if (iconImageId == "" && broad.IconImage != null)
-        {
-            // Clear icon image
-            broad.IconImage = null;
-            changedProperties.Add("icon_image");
-        }
-
         if (changedProperties.Any())
         {
             await db.SaveChangesAsync();
 
-            var packet = webSocketService.CreateBroadUpdatedPacket(broad, broad.Project, changedProperties, accountId);
-            await SendWebSocketPacketToProjectMembersAsync(broad, packet);
+            var packet = webSocketService.CreateBroadUpdatedPacket(broad, changedProperties, accountId);
+            await webSocketService.SendToUsersAsync(new List<string> { accountId.ToString() }, packet);
         }
 
         return broad;
@@ -192,15 +138,11 @@ public class BroadService(
     public async System.Threading.Tasks.Task DeleteBroadAsync(Guid broadId)
     {
         var accountId = GetCurrentAccountId();
-        var broad = await db.Broads
-            .Include(b => b.Project)
-            .ThenInclude(p => p.Members)
-            .FirstOrDefaultAsync(b => b.Id == broadId);
+        var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId);
 
         if (broad == null) throw new KeyNotFoundException("Broad not found");
 
-        // Check access
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && broad.Project.Members.All(m => m.AccountId != accountId))))
+        if (broad.AccountId != accountId)
             throw new UnauthorizedAccessException("No access to broad");
 
         db.Broads.Remove(broad);
@@ -208,46 +150,9 @@ public class BroadService(
 
         var packet = webSocketService.CreateBroadUpdatedPacket(
             broad,
-            broad.Project,
             new List<string> { "deleted" },
             accountId
         );
-        await SendWebSocketPacketToProjectMembersAsync(broad, packet);
-    }
-
-    private async Task<SnCloudFileReferenceObject?> GetFileAsync(string fileId)
-    {
-        try
-        {
-            // This would need to be injected as a dependency, but for now we'll assume it's available
-            // In a real implementation, you'd inject the FileService client
-            return null; // Placeholder - would need actual file service implementation
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private async System.Threading.Tasks.Task SendWebSocketPacketToProjectMembersAsync(WtBroad broad,
-        IdeaskWebSocketPacket packet)
-    {
-        var userIds = new List<string>
-        {
-            // Add broad creator
-            broad.AccountId.ToString()
-        };
-
-        // Add project members if broad belongs to a project
-        if (broad.Project != null)
-        {
-            var projectMembers = await db.ProjectMembers
-                .Where(pm => pm.ProjectId == broad.Project.Id)
-                .Select(pm => pm.AccountId.ToString())
-                .ToListAsync();
-            userIds.AddRange(projectMembers);
-        }
-
-        await webSocketService.SendToUsersAsync(userIds.Distinct().ToList(), packet);
+        await webSocketService.SendToUsersAsync(new List<string> { accountId.ToString() }, packet);
     }
 }

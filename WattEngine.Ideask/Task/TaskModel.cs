@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using DysonNetwork.Shared.Models;
+using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using WattEngine.Ideask.Broad;
 
@@ -20,12 +21,11 @@ public class WtTask : ModelBase
 
     [MaxLength(4096)] public string Name { get; set; } = null!;
     [MaxLength(8192)] public string? Description { get; set; }
-    // ReSharper disable once EntityFramework.ModelValidation.UnlimitedStringLength
     [Column(TypeName = "text")] public string? Content { get; set; }
     [Column(TypeName = "jsonb")] public List<SnCloudFileReferenceObject> Attachments { get; set; } = [];
-    
+
     public int Priority { get; set; }
- 
+
     public Instant? DeadlineAt { get; set; }
     public Instant? CompletedAt { get; set; }
     public TaskCompleteReason? CompleteReason { get; set; }
@@ -40,5 +40,15 @@ public class WtTask : ModelBase
     [JsonIgnore]
     public ICollection<WtTask> SubTasks { get; set; } = new List<WtTask>();
     [JsonIgnore]
-    public ICollection<WtProjectMember> Assignees { get; set; } = new List<WtProjectMember>();
+    public ICollection<WtTaskAssignee> Assignees { get; set; } = new List<WtTaskAssignee>();
+}
+
+[Index(nameof(TaskId))]
+[Index(nameof(AccountId))]
+public class WtTaskAssignee : ModelBase
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TaskId { get; set; }
+    [JsonIgnore] public WtTask Task { get; set; } = null!;
+    public Guid AccountId { get; set; }
 }

@@ -17,9 +17,8 @@ public class AppDatabase(
 {
     public DbSet<WtTask> Tasks { get; set; } = null!;
     public DbSet<WtBroad> Broads { get; set; } = null!;
-    public DbSet<WtProject> Projects { get; set; } = null!;
-    public DbSet<WtProjectMember> ProjectMembers { get; set; } = null!;
-    
+    public DbSet<WtTaskAssignee> TaskAssignees { get; set; } = null!;
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseNpgsql(
@@ -38,19 +37,6 @@ public class AppDatabase(
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplySoftDeleteFilters();
 
-        // WtProjectMember
-        modelBuilder.Entity<WtProjectMember>()
-            .HasOne(pm => pm.Project)
-            .WithMany(p => p.Members)
-            .HasForeignKey(pm => pm.ProjectId);
-
-        // WtBroad
-        modelBuilder.Entity<WtBroad>()
-            .HasOne(b => b.Project)
-            .WithMany(p => p.Broads)
-            .HasForeignKey(b => b.ProjectId)
-            .OnDelete(DeleteBehavior.SetNull);
-
         // WtTask self-reference
         modelBuilder.Entity<WtTask>()
             .HasOne(t => t.ParentTask)
@@ -58,11 +44,11 @@ public class AppDatabase(
             .HasForeignKey(t => t.ParentTaskId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // WtTask many-to-many with WtProjectMember
+        // WtTask -> WtTaskAssignee
         modelBuilder.Entity<WtTask>()
             .HasMany(t => t.Assignees)
-            .WithMany()
-            .UsingEntity(j => j.ToTable("WtTaskAssignees"));
+            .WithOne(a => a.Task)
+            .HasForeignKey(a => a.TaskId);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

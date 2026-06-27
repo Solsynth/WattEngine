@@ -18,10 +18,8 @@ public class BroadController(BroadService broadService) : ControllerBase
         [MaxLength(8192)]
         string? Description,
         string? Content,
-        string? BackgroundImageId,
-        string? IconImageId,
         Visibility? Visibility,
-        Guid? ProjectId
+        Guid? WorkspaceId
     );
 
     public record UpdateBroadRequest(
@@ -32,10 +30,8 @@ public class BroadController(BroadService broadService) : ControllerBase
         [MaxLength(8192)]
         string? Description,
         string? Content,
-        string? BackgroundImageId,
-        string? IconImageId,
         Visibility? Visibility,
-        Guid? ProjectId
+        Guid? WorkspaceId
     );
 
     [HttpGet]
@@ -72,11 +68,11 @@ public class BroadController(BroadService broadService) : ControllerBase
         {
             var broad = await broadService.CreateBroadAsync(
                 request.Name,
-                request.ProjectId,
+                request.WorkspaceId,
                 request.Description,
                 request.Content,
-                request.BackgroundImageId,
-                request.IconImageId,
+                backgroundImageId: null,
+                iconImageId: null,
                 request.Visibility
             );
             return CreatedAtAction(
@@ -103,11 +99,11 @@ public class BroadController(BroadService broadService) : ControllerBase
             var broad = await broadService.UpdateBroadAsync(
                 broadId,
                 request.Name,
-                request.ProjectId,
+                request.WorkspaceId,
                 request.Description,
                 request.Content,
-                request.BackgroundImageId,
-                request.IconImageId,
+                backgroundImageId: null,
+                iconImageId: null,
                 request.Visibility
             );
             return Ok(broad);

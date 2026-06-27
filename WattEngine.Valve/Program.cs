@@ -1,5 +1,6 @@
 using DysonNetwork.Shared.Auth;
 using DysonNetwork.Shared.EventBus;
+using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Networking;
 using DysonNetwork.Shared.Queue;
 using DysonNetwork.Shared.Registry;
@@ -20,8 +21,8 @@ builder.ConfigureAppKestrel(builder.Configuration, maxRequestBodySize: long.MaxV
 
 builder.Services.AddAppServices(builder.Configuration);
 builder.Services.AddAppAuthentication();
-builder.Services.AddDysonAuth();
-builder.Services.AddAccountService();
+builder.Services.AddDysonAuth(builder.Configuration);
+builder.Services.AddAccountService(builder.Configuration);
 
 builder.Services.AddAppFlushHandlers();
 builder.Services.AddAppBusinessServices(builder.Configuration);

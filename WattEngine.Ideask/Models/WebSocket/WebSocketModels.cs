@@ -22,7 +22,7 @@ public record IdeaskWebSocketPacket(
                 ["entity"] = Entity,
                 ["data"] = Data,
                 ["timestamp"] = Timestamp,
-                ["triggered_by "] = TriggeredBy
+                ["triggered_by"] = TriggeredBy
             }
         };
     }
@@ -31,7 +31,6 @@ public record IdeaskWebSocketPacket(
 public record TaskAssignedPayload(
     WtTask Task,
     WtBroad Broad,
-    WtProject? Project,
     List<string> AssignedUserIds,
     List<string> UnassignedUserIds
 );
@@ -39,46 +38,26 @@ public record TaskAssignedPayload(
 public record TaskDueReminderPayload(
     WtTask Task,
     WtBroad Broad,
-    WtProject? Project,
     Duration TimeUntilDue,
-    string ReminderLevel // "1d", "12h", "6h", "3h", "1h", "30m", "15m", "5m"
+    string ReminderLevel
 );
 
 public record TaskCreatedPayload(
     WtTask Task,
-    WtBroad Broad,
-    WtProject? Project
+    WtBroad Broad
 );
 
 public record TaskUpdatedPayload(
     WtTask Task,
     WtBroad Broad,
-    WtProject? Project,
     List<string> ChangedProperties
-);
-
-public record ProjectCreatedPayload(
-    WtProject Project
-);
-
-public record ProjectUpdatedPayload(
-    WtProject Project,
-    List<string> ChangedProperties
-);
-
-public record ProjectMemberChangedPayload(
-    WtProject Project,
-    List<string> AddedMemberIds,
-    List<string> RemovedMemberIds
 );
 
 public record BroadCreatedPayload(
-    WtBroad Broad,
-    WtProject? Project
+    WtBroad Broad
 );
 
 public record BroadUpdatedPayload(
     WtBroad Broad,
-    WtProject? Project,
     List<string> ChangedProperties
 );

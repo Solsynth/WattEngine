@@ -67,6 +67,14 @@ public class WorkspaceController(
         return workspace;
     }
 
+    [HttpGet("by-id/{id:guid}")]
+    public async Task<ActionResult<WtWorkspace>> GetWorkspaceById(Guid id)
+    {
+        var workspace = await ws.GetById(id);
+        if (workspace is null) return NotFound();
+        return workspace;
+    }
+
     [HttpPost]
     [Authorize]
     public async Task<ActionResult<WtWorkspace>> CreateWorkspace([FromBody] CreateWorkspaceRequest request)

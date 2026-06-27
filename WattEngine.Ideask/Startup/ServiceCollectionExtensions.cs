@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DysonNetwork.Shared.Cache;
+using DysonNetwork.Shared.Registry;
 using NodaTime;
 using NodaTime.Serialization.SystemTextJson;
 using WattEngine.Ideask.Broad;
@@ -56,11 +57,19 @@ public static class ServiceCollectionExtensions
 
         public IServiceCollection AddAppBusinessServices(IConfiguration configuration)
         {
-            services.AddScoped<ProjectService>();
             services.AddScoped<BroadService>();
             services.AddScoped<TaskService>();
             services.AddScoped<RealtimeDeliveryService>();
+            services.AddScoped<WorkspaceApiClient>();
             services.AddHostedService<TaskReminderService>();
+
+            // HttpClient for Valve workspace API
+            services.AddHttpClient("valve", client =>
+            {
+                var endpoint = ServiceEndpoints.ResolveHttp(configuration, "valve");
+                client.BaseAddress = new Uri(endpoint);
+                client.Timeout = TimeSpan.FromSeconds(10);
+            });
 
             return services;
         }

@@ -9,7 +9,13 @@ using WattEngine.Ideask.Models.WebSocket;
 
 namespace WattEngine.Ideask.Task;
 
-public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccessor, ILogger<TaskService> logger, RealtimeDeliveryService webSocketService)
+public class TaskService(
+    AppDatabase db,
+    IHttpContextAccessor httpContextAccessor,
+    ILogger<TaskService> logger,
+    RealtimeDeliveryService webSocketService,
+    WorkspaceApiClient workspaceApi
+)
 {
     private Guid GetCurrentAccountId()
     {
@@ -18,7 +24,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         return currentUser.Id;
     }
 
-    public async System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> CreateTaskAsync(
+    public async System.Threading.Tasks.Task<WtTask> CreateTaskAsync(
         Guid broadId,
         string name,
         string? description,
@@ -30,15 +36,17 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         List<Guid>? assigneeAccountIds)
     {
         var accountId = GetCurrentAccountId();
-        var broad = await db.Broads
-            .Include(b => b.Project)
-            .ThenInclude(p => p.Members)
-            .FirstOrDefaultAsync(b => b.Id == broadId);
+        var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId);
         if (broad == null) throw new KeyNotFoundException("Broad not found");
 
-        // Check access to broad
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId)
             throw new UnauthorizedAccessException("No access to broad");
+
+        // Check tasks quota if the broad belongs to a workspace
+        if (broad.WorkspaceId != null)
+        {
+            await CheckTaskQuota(broad);
+        }
 
         if (parentTaskId.HasValue)
         {
@@ -46,7 +54,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
             if (parent == null) throw new KeyNotFoundException("Parent task not found in this broad");
         }
 
-        var task = new WattEngine.Ideask.Task.WtTask
+        var task = new WtTask
         {
             Name = name,
             Description = description,
@@ -62,8 +70,9 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         await db.SaveChangesAsync();
 
         // Send WebSocket notification
-        var packet = webSocketService.CreateTaskCreatedPacket(task, broad, broad.Project, accountId);
-        await SendWebSocketPacketToProjectMembersAsync(broad, packet);
+        var packet = webSocketService.CreateTaskCreatedPacket(task, broad, accountId);
+        var userIds = new List<string> { accountId.ToString() };
+        await webSocketService.SendToUsersAsync(userIds, packet);
 
         if (assigneeAccountIds != null && assigneeAccountIds.Any())
         {
@@ -73,13 +82,27 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         return task;
     }
 
-    public async System.Threading.Tasks.Task<List<WattEngine.Ideask.Task.WtTask>> GetTasksAsync(Guid broadId)
+    private async System.Threading.Tasks.Task CheckTaskQuota(WtBroad broad)
+    {
+        var plan = await workspaceApi.GetWorkspacePlan(broad.WorkspaceId!.Value);
+        var maxTasks = WorkspacePlanQuota.GetMaxTasksPerProject(plan);
+
+        var taskCount = await db.Tasks
+            .CountAsync(t => t.BroadId == broad.Id && t.DeletedAt == null);
+
+        if (taskCount >= maxTasks)
+            throw new InvalidOperationException(
+                $"Workspace plan ({plan}) allows max {maxTasks} tasks per broad. Current count: {taskCount}."
+            );
+    }
+
+    public async System.Threading.Tasks.Task<List<WtTask>> GetTasksAsync(Guid broadId)
     {
         var accountId = GetCurrentAccountId();
         var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId);
         if (broad == null) throw new KeyNotFoundException("Broad not found");
 
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId)
             throw new UnauthorizedAccessException("No access to broad");
 
         return await db.Tasks
@@ -87,7 +110,7 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
             .ToListAsync();
     }
 
-    public async System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask?> GetTaskAsync(Guid taskId)
+    public async System.Threading.Tasks.Task<WtTask?> GetTaskAsync(Guid taskId)
     {
         var accountId = GetCurrentAccountId();
         var task = await db.Tasks
@@ -97,13 +120,13 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         if (task == null) return null;
 
         var broad = task.Broad;
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId)
             throw new UnauthorizedAccessException("No access to task");
 
         return task;
     }
 
-    public async System.Threading.Tasks.Task<WattEngine.Ideask.Task.WtTask> UpdateTaskAsync(
+    public async System.Threading.Tasks.Task<WtTask> UpdateTaskAsync(
         Guid taskId,
         string name,
         string? description,
@@ -111,19 +134,17 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         List<SnCloudFileReferenceObject>? attachments,
         int? priority,
         NodaTime.Instant? deadlineAt,
-        WattEngine.Ideask.Task.TaskCompleteReason? completeReason)
+        TaskCompleteReason? completeReason)
     {
         var accountId = GetCurrentAccountId();
         var task = await db.Tasks
             .Include(t => t.Broad)
-            .ThenInclude(b => b.Project)
             .FirstOrDefaultAsync(t => t.Id == taskId);
-        
+
         if (task == null) throw new KeyNotFoundException("Task not found");
 
-        // Check access
         var broad = task.Broad;
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId)
             throw new UnauthorizedAccessException("No access to task");
 
         var changedProperties = new List<string>();
@@ -183,8 +204,8 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
 
         if (changedProperties.Any())
         {
-            var packet = webSocketService.CreateTaskUpdatedPacket(task, broad, broad.Project, changedProperties, accountId);
-            await SendWebSocketPacketToProjectMembersAsync(broad, packet);
+            var packet = webSocketService.CreateTaskUpdatedPacket(task, broad, changedProperties, accountId);
+            await webSocketService.SendToUsersAsync(new List<string> { accountId.ToString() }, packet);
         }
 
         return task;
@@ -195,35 +216,30 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         var accountId = GetCurrentAccountId();
         var task = await db.Tasks
             .Include(t => t.Broad)
-            .ThenInclude(b => b.Project)
             .FirstOrDefaultAsync(t => t.Id == taskId);
-        
+
         if (task == null) throw new KeyNotFoundException("Task not found");
 
-        // Check access
         var broad = task.Broad;
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId)
             throw new UnauthorizedAccessException("No access to task");
 
         db.Tasks.Remove(task);
         await db.SaveChangesAsync();
 
         var packet = webSocketService.CreateTaskUpdatedPacket(
-            task, 
-            broad, 
-            broad.Project, 
-            new List<string> { "deleted" }, 
+            task,
+            broad,
+            new List<string> { "deleted" },
             accountId
         );
-        await SendWebSocketPacketToProjectMembersAsync(broad, packet);
+        await webSocketService.SendToUsersAsync(new List<string> { accountId.ToString() }, packet);
     }
 
     public async System.Threading.Tasks.Task AssignTaskAsync(Guid taskId, List<Guid> assigneeAccountIds)
     {
         var task = await db.Tasks
             .Include(t => t.Broad)
-            .ThenInclude(b => b.Project)
-            .ThenInclude(p => p.Members)
             .Include(t => t.Assignees)
             .FirstOrDefaultAsync(t => t.Id == taskId);
 
@@ -231,40 +247,45 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
 
         var accountId = GetCurrentAccountId();
         var broad = task.Broad;
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId)
             throw new UnauthorizedAccessException("No access to task");
-
-        var validMembers = broad.Project?.Members.Select(m => m.AccountId).ToList() ?? new List<Guid>();
-        if (!assigneeAccountIds.All(id => validMembers.Contains(id) || id == broad.AccountId))
-            throw new InvalidOperationException("Assignees must be project members or broad creator");
 
         var existingAssigneeIds = task.Assignees.Select(a => a.AccountId).ToList();
         var newAssigneeIds = assigneeAccountIds.Except(existingAssigneeIds).ToList();
-        var removedAssigneeIds = existingAssigneeIds.Except(assigneeAccountIds).ToList();
+        var removedAccountIds = existingAssigneeIds.Except(assigneeAccountIds).ToList();
 
-        var assignees = await db.ProjectMembers
-            .Where(pm => assigneeAccountIds.Contains(pm.AccountId) && pm.ProjectId == broad.ProjectId)
-            .ToListAsync();
+        // Remove assignees no longer in the list
+        var toRemove = task.Assignees
+            .Where(a => removedAccountIds.Contains(a.AccountId))
+            .ToList();
+        foreach (var assignee in toRemove)
+            task.Assignees.Remove(assignee);
 
-        task.Assignees.Clear();
-        foreach (var assignee in assignees)
+        // Add new assignees
+        foreach (var newId in newAssigneeIds)
         {
-            task.Assignees.Add(assignee);
+            task.Assignees.Add(new WtTaskAssignee
+            {
+                TaskId = taskId,
+                AccountId = newId
+            });
         }
 
         await db.SaveChangesAsync();
 
-        if (newAssigneeIds.Any() || removedAssigneeIds.Any())
+        if (newAssigneeIds.Any() || removedAccountIds.Any())
         {
+            var allUserIds = assigneeAccountIds.Select(id => id.ToString()).ToList();
+            allUserIds.Add(accountId.ToString());
+
             var packet = webSocketService.CreateTaskAssignedPacket(
-                task, 
-                broad, 
-                broad.Project, 
+                task,
+                broad,
                 newAssigneeIds.Select(id => id.ToString()).ToList(),
-                removedAssigneeIds.Select(id => id.ToString()).ToList(),
+                removedAccountIds.Select(id => id.ToString()).ToList(),
                 accountId
             );
-            await SendWebSocketPacketToProjectMembersAsync(broad, packet);
+            await webSocketService.SendToUsersAsync(allUserIds.Distinct().ToList(), packet);
         }
     }
 
@@ -273,15 +294,13 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         var accountId = GetCurrentAccountId();
         var task = await db.Tasks
             .Include(t => t.Broad)
-            .ThenInclude(b => b.Project)
             .Include(t => t.Assignees)
             .FirstOrDefaultAsync(t => t.Id == taskId);
-        
+
         if (task == null) throw new KeyNotFoundException("Task not found");
 
-        // Check access
         var broad = task.Broad;
-        if (broad.AccountId != accountId && (broad.Project == null || (broad.Project.AccountId != accountId && !broad.Project.Members.Any(m => m.AccountId == accountId))))
+        if (broad.AccountId != accountId)
             throw new UnauthorizedAccessException("No access to task");
 
         var assignee = task.Assignees.FirstOrDefault(a => a.AccountId == assigneeAccountId);
@@ -291,33 +310,15 @@ public class TaskService(AppDatabase db, IHttpContextAccessor httpContextAccesso
         await db.SaveChangesAsync();
 
         var packet = webSocketService.CreateTaskAssignedPacket(
-            task, 
-            broad, 
-            broad.Project, 
+            task,
+            broad,
             new List<string>(),
             new List<string> { assigneeAccountId.ToString() },
             accountId
         );
-        await SendWebSocketPacketToProjectMembersAsync(broad, packet);
-    }
-
-    private async System.Threading.Tasks.Task SendWebSocketPacketToProjectMembersAsync(WtBroad broad, IdeaskWebSocketPacket packet)
-    {
-        var userIds = new List<string>();
-        
-        // Add broad creator
-        userIds.Add(broad.AccountId.ToString());
-        
-        // Add project members if broad belongs to a project
-        if (broad.Project != null)
-        {
-            var projectMembers = await db.ProjectMembers
-                .Where(pm => pm.ProjectId == broad.Project.Id)
-                .Select(pm => pm.AccountId.ToString())
-                .ToListAsync();
-            userIds.AddRange(projectMembers);
-        }
-
-        await webSocketService.SendToUsersAsync(userIds.Distinct().ToList(), packet);
+        await webSocketService.SendToUsersAsync(
+            new List<string> { accountId.ToString(), assigneeAccountId.ToString() },
+            packet
+        );
     }
 }
