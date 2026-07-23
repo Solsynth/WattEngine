@@ -1,0 +1,17 @@
+Copyright Notice and License
+
+Copyright (c) 2026 Solsynth
+
+All rights reserved.
+
+This repository and all associated source code, documentation, assets, and other materials are protected by copyright law.
+
+No permission is granted to use, copy, modify, merge, publish, distribute, sublicense, sell, or create derivative works from any part of this repository without prior written permission from the copyright holder.
+
+This repository is made publicly available solely for viewing, reference, discussion, and the submission of issues or pull requests through GitHub.
+
+Except as expressly permitted by GitHub’s Terms of Service for the purpose of hosting, displaying, indexing, and forking repositories on the GitHub platform, no license or other rights are granted, whether express or implied.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+For licensing inquiries or permission requests, please contact the copyright holder.
