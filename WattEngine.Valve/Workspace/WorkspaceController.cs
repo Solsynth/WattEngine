@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DysonNetwork.Shared.Capabilities;
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
@@ -9,6 +10,7 @@ using NodaTime;
 namespace WattEngine.Valve.Workspace;
 
 [ApiController]
+[ApiFeature("workspaces", Revision = 1)]
 [Route("/api/workspaces")]
 #pragma warning disable CS9113
 public class WorkspaceController(

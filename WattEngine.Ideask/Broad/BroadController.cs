@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using DysonNetwork.Shared.Capabilities;
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace WattEngine.Ideask.Broad;
 
 [ApiController]
+[ApiFeature("ideask.broads", Revision = 1)]
 [Route("/api/broads")]
 public class BroadController(BroadService broadService) : ControllerBase
 {

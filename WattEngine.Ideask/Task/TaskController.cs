@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using DysonNetwork.Shared.Capabilities;
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace WattEngine.Ideask.Task;
 
 [ApiController]
+[ApiFeature("ideask.tasks", Revision = 1)]
 [Route("/api")]
 public class TaskController(TaskService taskService, DyFileService.DyFileServiceClient files) : ControllerBase
 {

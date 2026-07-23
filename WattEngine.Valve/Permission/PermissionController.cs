@@ -1,3 +1,4 @@
+using DysonNetwork.Shared.Capabilities;
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace WattEngine.Valve.Workspace;
 
 [ApiController]
+[ApiFeature("workspaces.permissions", Revision = 1)]
 [Route("/api/workspaces/{slug}/permissions")]
 #pragma warning disable CS9113
 public class PermissionController(
