@@ -22,6 +22,7 @@ builder.ConfigureAppKestrel(builder.Configuration, maxRequestBodySize: long.MaxV
 builder.Services.AddAppServices(builder.Configuration);
 builder.Services.AddAppAuthentication();
 builder.Services.AddDysonAuth();
+builder.Services.AddDyAuthModelProjection();
 builder.Services.AddAccountService();
 builder.Services.AddWalletService();
 

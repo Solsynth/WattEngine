@@ -1,3 +1,5 @@
+using DysonNetwork.Shared.Auth;
+
 namespace WattEngine.Ideask.Startup;
 
 public static class ApplicationBuilderExtensions
@@ -7,6 +9,7 @@ public static class ApplicationBuilderExtensions
         public WebApplication ConfigureAppMiddleware()
         {
             app.UseAuthentication();
+            app.UseDyAuthModelProjection();
             app.UseAuthorization();
             app.MapControllers();
 
