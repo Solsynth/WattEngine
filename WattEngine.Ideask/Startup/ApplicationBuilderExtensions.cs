@@ -6,6 +6,7 @@ public static class ApplicationBuilderExtensions
     {
         public WebApplication ConfigureAppMiddleware()
         {
+            app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
 
