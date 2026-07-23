@@ -20,6 +20,7 @@ builder.Services.AddDysonAuth();
 builder.Services.AddDyAuthModelProjection();
 builder.Services.AddRingService();
 builder.Services.AddAccountService();
+builder.Services.AddDriveService();
 
 builder.Services.AddAppFlushHandlers();
 builder.Services.AddAppBusinessServices(builder.Configuration);
