@@ -7,11 +7,13 @@ namespace WattEngine.Valve.Workspace;
 
 [ApiController]
 [Route("/api/workspaces/{slug}/permissions")]
+#pragma warning disable CS9113
 public class PermissionController(
     AppDatabase db,
     WorkspaceService ws,
     PermissionService perms
 ) : Controller
+#pragma warning restore CS9113
 {
     [HttpGet("check")]
     [Authorize]

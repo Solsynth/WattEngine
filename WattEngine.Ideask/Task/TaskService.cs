@@ -9,6 +9,7 @@ using WattEngine.Ideask.Models.WebSocket;
 
 namespace WattEngine.Ideask.Task;
 
+#pragma warning disable CS9113
 public class TaskService(
     AppDatabase db,
     IHttpContextAccessor httpContextAccessor,
@@ -16,6 +17,7 @@ public class TaskService(
     RealtimeDeliveryService webSocketService,
     WorkspaceApiClient workspaceApi
 )
+#pragma warning restore CS9113
 {
     private Guid GetCurrentAccountId()
     {

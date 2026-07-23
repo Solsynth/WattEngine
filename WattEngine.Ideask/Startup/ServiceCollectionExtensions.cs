@@ -66,8 +66,6 @@ public static class ServiceCollectionExtensions
             // HttpClient for Valve workspace API
             services.AddHttpClient("valve", client =>
             {
-                var endpoint = ServiceEndpoints.ResolveHttp(configuration, "valve");
-                client.BaseAddress = new Uri(endpoint);
                 client.Timeout = TimeSpan.FromSeconds(10);
             });
 

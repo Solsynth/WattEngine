@@ -7,12 +7,14 @@ using NodaTime;
 
 namespace WattEngine.Valve.Workspace;
 
+#pragma warning disable CS9113
 public class WorkspaceService(
     AppDatabase db,
     ICacheService cache,
     DyAccountService.DyAccountServiceClient accountGrpc,
     RemotePaymentService payments
 )
+#pragma warning restore CS9113
 {
     private const string CacheKeyPrefix = "workspace:";
 

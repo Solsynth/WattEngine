@@ -10,11 +10,13 @@ namespace WattEngine.Valve.Workspace;
 
 [ApiController]
 [Route("/api/workspaces")]
+#pragma warning disable CS9113
 public class WorkspaceController(
     AppDatabase db,
     WorkspaceService ws,
     DyAccountService.DyAccountServiceClient accountGrpc
 ) : Controller
+#pragma warning restore CS9113
 {
     public class CreateWorkspaceRequest
     {

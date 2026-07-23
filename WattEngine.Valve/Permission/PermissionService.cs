@@ -3,11 +3,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace WattEngine.Valve.Workspace;
 
+#pragma warning disable CS9113
 public class PermissionService(
     AppDatabase db,
     WorkspaceService ws,
     ICacheService cache
 )
+#pragma warning restore CS9113
 {
     private const string CacheKeyPrefix = "workspace:perm:";
 
