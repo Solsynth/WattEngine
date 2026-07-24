@@ -1,94 +1,154 @@
+using DysonNetwork.Shared.Models;
+using DysonNetwork.Shared.Proto;
+using Google.Protobuf.WellKnownTypes;
 using Grpc.Core;
 
 namespace WattEngine.Valve.Workspace;
 
-// ponytail: simplified gRPC service - add proto definitions later for proper gRPC
 public class WorkspaceGrpcService(
-    WorkspaceService ws,
-    PermissionService perms
-)
+    WorkspaceService workspaces,
+    PermissionService permissions
+) : DyWorkspaceService.DyWorkspaceServiceBase
 {
-    public async Task<CheckPermissionResponse> CheckPermission(
-        CheckPermissionRequest request, ServerCallContext context)
+    private static Guid ParseId(string value, string fieldName)
     {
-        var workspaceId = Guid.Parse(request.WorkspaceId);
-        var accountId = Guid.Parse(request.AccountId);
-
-        var hasPermission = await perms.HasPermission(workspaceId, accountId, request.Permission);
-
-        return new CheckPermissionResponse
-        {
-            HasPermission = hasPermission
-        };
+        if (!Guid.TryParse(value, out var id))
+            throw new RpcException(new Status(StatusCode.InvalidArgument, $"{fieldName} must be a GUID."));
+        return id;
     }
 
-    public async Task<GetWorkspaceResponse> GetWorkspace(
-        GetWorkspaceRequest request, ServerCallContext context)
+    private static DyWorkspace ToProto(WtWorkspace workspace)
     {
-        var workspace = await ws.GetById(Guid.Parse(request.Id))
-            ?? throw new RpcException(new Status(StatusCode.NotFound, "Workspace not found"));
-
-        return new GetWorkspaceResponse
+        var result = new DyWorkspace
         {
             Id = workspace.Id.ToString(),
             Slug = workspace.Slug,
             Name = workspace.Name,
-            Type = (int)workspace.Type,
-            OwnerAccountId = workspace.OwnerAccountId.ToString()
+            Description = workspace.Description ?? string.Empty,
+            Type = (DyWorkspaceType)workspace.Type,
+            OwnerAccountId = workspace.OwnerAccountId.ToString(),
+            Plan = (DyWorkspacePlan)workspace.Plan
         };
+
+        if (workspace.Picture is not null) result.Picture = workspace.Picture.ToProtoValue();
+        if (workspace.Background is not null) result.Background = workspace.Background.ToProtoValue();
+        if (workspace.PlanExpiresAt.HasValue)
+            result.PlanExpiresAt = Timestamp.FromDateTime(workspace.PlanExpiresAt.Value.ToDateTimeUtc());
+
+        return result;
     }
 
-    public async Task<IsMemberResponse> IsMember(
-        IsMemberRequest request, ServerCallContext context)
+    private static DyWorkspaceMember ToProto(WtWorkspaceMember member)
     {
-        var workspaceId = Guid.Parse(request.WorkspaceId);
-        var accountId = Guid.Parse(request.AccountId);
-
-        var member = await ws.GetMember(workspaceId, accountId);
-
-        return new IsMemberResponse
+        var result = new DyWorkspaceMember
         {
-            IsMember = member != null,
-            Role = member?.Role ?? 0
+            Id = member.Id.ToString(),
+            WorkspaceId = member.WorkspaceId.ToString(),
+            AccountId = member.AccountId.ToString(),
+            Role = member.Role
         };
+
+        if (member.JoinedAt.HasValue)
+            result.JoinedAt = Timestamp.FromDateTime(member.JoinedAt.Value.ToDateTimeUtc());
+        if (member.LeaveAt.HasValue)
+            result.LeaveAt = Timestamp.FromDateTime(member.LeaveAt.Value.ToDateTimeUtc());
+
+        return result;
     }
-}
 
-// ponytail: placeholder message types until proto generation is set up
-public class CheckPermissionRequest
-{
-    public string WorkspaceId { get; set; } = string.Empty;
-    public string AccountId { get; set; } = string.Empty;
-    public string Permission { get; set; } = string.Empty;
-}
+    public override async Task<DyWorkspace> GetWorkspace(DyGetWorkspaceRequest request, ServerCallContext context)
+    {
+        var workspace = request.QueryCase switch
+        {
+            DyGetWorkspaceRequest.QueryOneofCase.Id => await workspaces.GetById(ParseId(request.Id, "id")),
+            DyGetWorkspaceRequest.QueryOneofCase.Slug when !string.IsNullOrWhiteSpace(request.Slug) => await workspaces.GetBySlug(request.Slug),
+            _ => throw new RpcException(new Status(StatusCode.InvalidArgument, "Must provide either id or slug."))
+        };
 
-public class CheckPermissionResponse
-{
-    public bool HasPermission { get; set; }
-}
+        if (workspace is null)
+            throw new RpcException(new Status(StatusCode.NotFound, "Workspace not found."));
 
-public class GetWorkspaceRequest
-{
-    public string Id { get; set; } = string.Empty;
-}
+        return ToProto(workspace);
+    }
 
-public class GetWorkspaceResponse
-{
-    public string Id { get; set; } = string.Empty;
-    public string Slug { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public int Type { get; set; }
-    public string OwnerAccountId { get; set; } = string.Empty;
-}
+    public override async Task<DyGetWorkspaceBatchResponse> GetWorkspaceBatch(
+        DyGetWorkspaceBatchRequest request, ServerCallContext context)
+    {
+        var response = new DyGetWorkspaceBatchResponse();
+        foreach (var id in request.Ids.Distinct())
+        {
+            var workspace = await workspaces.GetById(ParseId(id, "ids"));
+            if (workspace is not null) response.Workspaces.Add(ToProto(workspace));
+        }
+        return response;
+    }
 
-public class IsMemberRequest
-{
-    public string WorkspaceId { get; set; } = string.Empty;
-    public string AccountId { get; set; } = string.Empty;
-}
+    public override async Task<DyGetUserWorkspacesResponse> GetUserWorkspaces(
+        DyGetUserWorkspacesRequest request, ServerCallContext context)
+    {
+        var userWorkspaces = await workspaces.GetUserWorkspaces(ParseId(request.AccountId, "account_id"));
+        var response = new DyGetUserWorkspacesResponse();
+        response.WorkspaceIds.AddRange(userWorkspaces.Select(workspace => workspace.Id.ToString()));
+        return response;
+    }
 
-public class IsMemberResponse
-{
-    public bool IsMember { get; set; }
-    public int Role { get; set; }
+    public override async Task<BoolValue> IsMemberWithRole(
+        DyIsWorkspaceMemberWithRoleRequest request, ServerCallContext context)
+    {
+        if (request.RequiredRoles.Count == 0) return new BoolValue { Value = false };
+
+        var isMember = await workspaces.IsMemberWithRole(
+            ParseId(request.WorkspaceId, "workspace_id"),
+            ParseId(request.AccountId, "account_id"),
+            request.RequiredRoles.Max());
+        return new BoolValue { Value = isMember };
+    }
+
+    public override async Task<BoolValue> HasPermission(
+        DyHasWorkspacePermissionRequest request, ServerCallContext context)
+    {
+        var hasPermission = await permissions.HasPermission(
+            ParseId(request.WorkspaceId, "workspace_id"),
+            ParseId(request.AccountId, "account_id"),
+            request.Permission);
+        return new BoolValue { Value = hasPermission };
+    }
+
+    public override Task<DyWorkspacePlanQuota> GetPlanQuota(DyGetPlanQuotaRequest request, ServerCallContext context)
+    {
+        var plan = (WorkspacePlan)request.Plan;
+        return Task.FromResult(new DyWorkspacePlanQuota
+        {
+            Plan = request.Plan,
+            MaxProjects = WorkspacePlanQuota.GetMaxProjects(plan),
+            MaxMembersPerWorkspace = WorkspacePlanQuota.GetMaxMembers(plan),
+            MaxTasksPerProject = WorkspacePlanQuota.GetMaxTasksPerProject(plan),
+            MaxBroadsPerProject = WorkspacePlanQuota.GetMaxBroadsPerProject(plan),
+            MaxStorageBytes = WorkspacePlanQuota.GetMaxStorageBytes(plan)
+        });
+    }
+
+    public override async Task<DyWorkspaceMember> LoadMemberAccount(
+        DyLoadWorkspaceMemberRequest request, ServerCallContext context)
+    {
+        var requested = request.Member;
+        var member = await workspaces.GetMember(
+            ParseId(requested.WorkspaceId, "member.workspace_id"),
+            ParseId(requested.AccountId, "member.account_id"));
+        return member is null ? requested : ToProto(member);
+    }
+
+    public override async Task<DyLoadWorkspaceMembersResponse> LoadMemberAccounts(
+        DyLoadWorkspaceMembersRequest request, ServerCallContext context)
+    {
+        var response = new DyLoadWorkspaceMembersResponse();
+        foreach (var requested in request.Members)
+        {
+            var member = await workspaces.GetMember(
+                ParseId(requested.WorkspaceId, "member.workspace_id"),
+                ParseId(requested.AccountId, "member.account_id"));
+            response.Members.Add(member is null ? requested : ToProto(member));
+        }
+        return response;
+    }
 }

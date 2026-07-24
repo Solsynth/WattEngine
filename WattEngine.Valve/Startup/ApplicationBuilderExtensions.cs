@@ -19,7 +19,7 @@ public static class ApplicationBuilderExtensions
 
         public WebApplication ConfigureGrpcServices()
         {
-            // app.MapGrpcService<WorkspaceGrpcService>(); // Add when proto is defined
+            app.MapGrpcService<WorkspaceGrpcService>();
             app.MapGrpcReflectionService();
 
             return app;
