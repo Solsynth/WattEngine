@@ -23,6 +23,7 @@ public class WtTask : ModelBase
     [MaxLength(8192)] public string? Description { get; set; }
     [Column(TypeName = "text")] public string? Content { get; set; }
     [Column(TypeName = "jsonb")] public List<SnCloudFileReferenceObject> Attachments { get; set; } = [];
+    [Column(TypeName = "jsonb")] public List<string> Tags { get; set; } = [];
 
     public int Priority { get; set; }
 
@@ -34,6 +35,9 @@ public class WtTask : ModelBase
     [JsonIgnore]
     public WtBroad Broad { get; set; } = null!;
 
+    public Guid? GroupId { get; set; }
+    [JsonIgnore] public WtTaskGroup? Group { get; set; }
+
     public Guid? ParentTaskId { get; set; }
     [JsonIgnore]
     public WtTask? ParentTask { get; set; }
@@ -41,6 +45,17 @@ public class WtTask : ModelBase
     public ICollection<WtTask> SubTasks { get; set; } = new List<WtTask>();
     [JsonIgnore]
     public ICollection<WtTaskAssignee> Assignees { get; set; } = new List<WtTaskAssignee>();
+}
+
+[Index(nameof(BroadId), nameof(Position))]
+public class WtTaskGroup : ModelBase
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid BroadId { get; set; }
+    [JsonIgnore] public WtBroad Broad { get; set; } = null!;
+    [Required, MaxLength(256)] public string Name { get; set; } = null!;
+    public int Position { get; set; }
+    [JsonIgnore] public ICollection<WtTask> Tasks { get; set; } = new List<WtTask>();
 }
 
 [Index(nameof(TaskId))]

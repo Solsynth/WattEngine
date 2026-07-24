@@ -16,6 +16,7 @@ public class AppDatabase(
 ) : DbContext(options)
 {
     public DbSet<WtTask> Tasks { get; set; } = null!;
+    public DbSet<WtTaskGroup> TaskGroups { get; set; } = null!;
     public DbSet<WtBroad> Broads { get; set; } = null!;
     public DbSet<WtTaskAssignee> TaskAssignees { get; set; } = null!;
 
@@ -43,6 +44,12 @@ public class AppDatabase(
             .WithMany(t => t.SubTasks)
             .HasForeignKey(t => t.ParentTaskId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<WtTask>()
+            .HasOne(t => t.Group)
+            .WithMany(g => g.Tasks)
+            .HasForeignKey(t => t.GroupId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // WtTask -> WtTaskAssignee
         modelBuilder.Entity<WtTask>()

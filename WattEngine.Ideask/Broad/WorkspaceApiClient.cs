@@ -31,7 +31,7 @@ public class WorkspaceApiClient(IHttpClientFactory httpClientFactory)
     public async Task<WorkspacePlan> GetWorkspacePlan(Guid workspaceId)
     {
         var client = httpClientFactory.CreateClient("valve");
-        var response = await client.GetAsync($"/api/workspaces/by-id/{workspaceId}");
+        var response = await client.GetAsync($"/api/workspaces/{workspaceId}");
 
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException("Workspace not found.");

@@ -16,22 +16,34 @@ namespace WattEngine.Valve.Workspace;
 public class WorkspaceController(
     AppDatabase db,
     WorkspaceService ws,
-    DyAccountService.DyAccountServiceClient accountGrpc
+    DyAccountService.DyAccountServiceClient accountGrpc,
+    DyFileService.DyFileServiceClient files
 ) : Controller
 #pragma warning restore CS9113
 {
+    private Task<WtWorkspace?> ResolveWorkspace(string slug)
+    {
+        return Guid.TryParse(slug, out var id)
+            ? ws.GetById(id)
+            : ws.GetBySlug(slug);
+    }
+
     public class CreateWorkspaceRequest
     {
         [Required, MaxLength(1024)] public string Slug { get; set; } = string.Empty;
         [Required, MaxLength(1024)] public string Name { get; set; } = string.Empty;
         [MaxLength(4096)] public string? Description { get; set; }
         [Required] public WorkspaceType Type { get; set; }
+        public string? PictureId { get; set; }
+        public string? BackgroundId { get; set; }
     }
 
     public class UpdateWorkspaceRequest
     {
         [MaxLength(1024)] public string? Name { get; set; }
         [MaxLength(4096)] public string? Description { get; set; }
+        public string? PictureId { get; set; }
+        public string? BackgroundId { get; set; }
     }
 
     public class InviteMemberRequest
@@ -66,15 +78,7 @@ public class WorkspaceController(
     [HttpGet("{slug}")]
     public async Task<ActionResult<WtWorkspace>> GetWorkspace(string slug)
     {
-        var workspace = await ws.GetBySlug(slug);
-        if (workspace is null) return NotFound();
-        return workspace;
-    }
-
-    [HttpGet("by-id/{id:guid}")]
-    public async Task<ActionResult<WtWorkspace>> GetWorkspaceById(Guid id)
-    {
-        var workspace = await ws.GetById(id);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
         return workspace;
     }
@@ -97,6 +101,20 @@ public class WorkspaceController(
             Type = request.Type
         };
 
+        if (request.PictureId is not null)
+        {
+            var picture = await files.GetFileAsync(new DyGetFileRequest { Id = request.PictureId });
+            if (picture is null) return BadRequest("Invalid picture ID.");
+            workspace.Picture = SnCloudFileReferenceObject.FromProtoValue(picture);
+        }
+
+        if (request.BackgroundId is not null)
+        {
+            var background = await files.GetFileAsync(new DyGetFileRequest { Id = request.BackgroundId });
+            if (background is null) return BadRequest("Invalid background ID.");
+            workspace.Background = SnCloudFileReferenceObject.FromProtoValue(background);
+        }
+
         await ws.Create(workspace, currentUser.Id);
         return CreatedAtAction(nameof(GetWorkspace), new { slug = workspace.Slug }, workspace);
     }
@@ -107,7 +125,7 @@ public class WorkspaceController(
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
 
-        var workspace = await ws.GetBySlug(slug);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
 
         if (!await ws.IsMemberWithRole(workspace.Id, currentUser.Id, WorkspaceMemberRole.Owner, WorkspaceMemberRole.Admin))
@@ -115,6 +133,20 @@ public class WorkspaceController(
 
         if (request.Name != null) workspace.Name = request.Name;
         if (request.Description != null) workspace.Description = request.Description;
+
+        if (request.PictureId is not null)
+        {
+            var picture = await files.GetFileAsync(new DyGetFileRequest { Id = request.PictureId });
+            if (picture is null) return BadRequest("Invalid picture ID.");
+            workspace.Picture = SnCloudFileReferenceObject.FromProtoValue(picture);
+        }
+
+        if (request.BackgroundId is not null)
+        {
+            var background = await files.GetFileAsync(new DyGetFileRequest { Id = request.BackgroundId });
+            if (background is null) return BadRequest("Invalid background ID.");
+            workspace.Background = SnCloudFileReferenceObject.FromProtoValue(background);
+        }
 
         await ws.Update(workspace);
         return workspace;
@@ -126,7 +158,7 @@ public class WorkspaceController(
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
 
-        var workspace = await ws.GetBySlug(slug);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
 
         if (workspace.OwnerAccountId != currentUser.Id)
@@ -142,7 +174,7 @@ public class WorkspaceController(
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
 
-        var workspace = await ws.GetBySlug(slug);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
 
         if (!await ws.IsMemberWithRole(workspace.Id, currentUser.Id, WorkspaceMemberRole.Viewer))
@@ -157,7 +189,7 @@ public class WorkspaceController(
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
 
-        var workspace = await ws.GetBySlug(slug);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
 
         if (!await ws.IsMemberWithRole(workspace.Id, currentUser.Id, WorkspaceMemberRole.Admin))
@@ -183,7 +215,7 @@ public class WorkspaceController(
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
 
-        var workspace = await ws.GetBySlug(slug);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
 
         if (!await ws.IsMemberWithRole(workspace.Id, currentUser.Id, WorkspaceMemberRole.Admin))
@@ -208,7 +240,7 @@ public class WorkspaceController(
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
 
-        var workspace = await ws.GetBySlug(slug);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
 
         if (!await ws.IsMemberWithRole(workspace.Id, currentUser.Id, WorkspaceMemberRole.Admin))
@@ -236,7 +268,7 @@ public class WorkspaceController(
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
 
-        var workspace = await ws.GetBySlug(slug);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
 
         if (!await ws.IsMemberWithRole(workspace.Id, currentUser.Id, WorkspaceMemberRole.Viewer))
@@ -272,7 +304,7 @@ public class WorkspaceController(
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
 
-        var workspace = await ws.GetBySlug(slug);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
 
         if (workspace.OwnerAccountId != currentUser.Id)
@@ -298,7 +330,7 @@ public class WorkspaceController(
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
 
-        var workspace = await ws.GetBySlug(slug);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
 
         try
@@ -335,7 +367,7 @@ public class WorkspaceController(
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
 
-        var workspace = await ws.GetBySlug(slug);
+        var workspace = await ResolveWorkspace(slug);
         if (workspace is null) return NotFound();
 
         if (workspace.OwnerAccountId != currentUser.Id)

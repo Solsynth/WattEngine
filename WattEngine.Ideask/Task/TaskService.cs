@@ -26,6 +26,30 @@ public class TaskService(
         return currentUser.Id;
     }
 
+    private async System.Threading.Tasks.Task<WtBroad> GetOwnedBroad(Guid broadId)
+    {
+        var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId)
+            ?? throw new KeyNotFoundException("Broad not found");
+        if (broad.AccountId != GetCurrentAccountId())
+            throw new UnauthorizedAccessException("No access to broad");
+        return broad;
+    }
+
+    private async System.Threading.Tasks.Task EnsureGroupBelongsToBroad(Guid groupId, Guid broadId)
+    {
+        if (!await db.TaskGroups.AnyAsync(g => g.Id == groupId && g.BroadId == broadId))
+            throw new KeyNotFoundException("Task group not found in this broad");
+    }
+
+    private static List<string> NormalizeTags(IEnumerable<string>? tags)
+    {
+        if (tags is null) return [];
+        var normalized = tags.Select(tag => tag.Trim()).ToList();
+        if (normalized.Any(string.IsNullOrWhiteSpace) || normalized.Any(tag => tag.Length > 128))
+            throw new ArgumentException("Tags must be non-empty and at most 128 characters.");
+        return normalized.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     public async System.Threading.Tasks.Task<WtTask> CreateTaskAsync(
         Guid broadId,
         string name,
@@ -35,7 +59,9 @@ public class TaskService(
         int priority,
         NodaTime.Instant? deadlineAt,
         Guid? parentTaskId,
-        List<Guid>? assigneeAccountIds)
+        List<Guid>? assigneeAccountIds,
+        Guid? groupId,
+        List<string>? tags)
     {
         var accountId = GetCurrentAccountId();
         var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId);
@@ -56,6 +82,9 @@ public class TaskService(
             if (parent == null) throw new KeyNotFoundException("Parent task not found in this broad");
         }
 
+        if (groupId.HasValue)
+            await EnsureGroupBelongsToBroad(groupId.Value, broadId);
+
         var task = new WtTask
         {
             Name = name,
@@ -65,7 +94,9 @@ public class TaskService(
             Priority = priority,
             DeadlineAt = deadlineAt,
             BroadId = broadId,
-            ParentTaskId = parentTaskId
+            ParentTaskId = parentTaskId,
+            GroupId = groupId,
+            Tags = NormalizeTags(tags)
         };
 
         db.Tasks.Add(task);
@@ -136,7 +167,10 @@ public class TaskService(
         List<SnCloudFileReferenceObject>? attachments,
         int? priority,
         NodaTime.Instant? deadlineAt,
-        TaskCompleteReason? completeReason)
+        TaskCompleteReason? completeReason,
+        Guid? groupId,
+        bool ungroup,
+        List<string>? tags)
     {
         var accountId = GetCurrentAccountId();
         var task = await db.Tasks
@@ -172,6 +206,31 @@ public class TaskService(
         {
             task.Attachments = attachments;
             changedProperties.Add("attachments");
+        }
+
+        if (tags is not null)
+        {
+            var normalizedTags = NormalizeTags(tags);
+            if (!normalizedTags.SequenceEqual(task.Tags, StringComparer.OrdinalIgnoreCase))
+            {
+                task.Tags = normalizedTags;
+                changedProperties.Add("tags");
+            }
+        }
+
+        if (groupId.HasValue)
+        {
+            await EnsureGroupBelongsToBroad(groupId.Value, task.BroadId);
+            if (task.GroupId != groupId)
+            {
+                task.GroupId = groupId;
+                changedProperties.Add("group_id");
+            }
+        }
+        else if (ungroup && task.GroupId.HasValue)
+        {
+            task.GroupId = null;
+            changedProperties.Add("group_id");
         }
 
         if (priority.HasValue && task.Priority != priority.Value)
@@ -211,6 +270,50 @@ public class TaskService(
         }
 
         return task;
+    }
+
+    public async System.Threading.Tasks.Task<List<WtTaskGroup>> GetTaskGroupsAsync(Guid broadId)
+    {
+        await GetOwnedBroad(broadId);
+        return await db.TaskGroups.Where(g => g.BroadId == broadId).OrderBy(g => g.Position).ToListAsync();
+    }
+
+    public async System.Threading.Tasks.Task<WtTaskGroup> CreateTaskGroupAsync(Guid broadId, string name, int? position)
+    {
+        await GetOwnedBroad(broadId);
+        var nextPosition = (await db.TaskGroups.Where(g => g.BroadId == broadId)
+            .MaxAsync(g => (int?)g.Position) ?? -1) + 1;
+        var group = new WtTaskGroup { BroadId = broadId, Name = name, Position = position ?? nextPosition };
+        db.TaskGroups.Add(group);
+        await db.SaveChangesAsync();
+        return group;
+    }
+
+    public async System.Threading.Tasks.Task<WtTaskGroup> UpdateTaskGroupAsync(Guid groupId, string name, int? position)
+    {
+        var group = await db.TaskGroups.Include(g => g.Broad).FirstOrDefaultAsync(g => g.Id == groupId)
+            ?? throw new KeyNotFoundException("Task group not found");
+        if (group.Broad.AccountId != GetCurrentAccountId())
+            throw new UnauthorizedAccessException("No access to task group");
+        group.Name = name;
+        if (position.HasValue) group.Position = position.Value;
+        await db.SaveChangesAsync();
+        return group;
+    }
+
+    public async System.Threading.Tasks.Task DeleteTaskGroupAsync(Guid groupId)
+    {
+        var group = await db.TaskGroups.Include(g => g.Broad).FirstOrDefaultAsync(g => g.Id == groupId)
+            ?? throw new KeyNotFoundException("Task group not found");
+        if (group.Broad.AccountId != GetCurrentAccountId())
+            throw new UnauthorizedAccessException("No access to task group");
+
+        var groupedTasks = await db.Tasks.Where(task => task.GroupId == groupId).ToListAsync();
+        foreach (var task in groupedTasks)
+            task.GroupId = null;
+
+        db.TaskGroups.Remove(group);
+        await db.SaveChangesAsync();
     }
 
     public async System.Threading.Tasks.Task DeleteTaskAsync(Guid taskId)

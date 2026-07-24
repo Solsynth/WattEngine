@@ -10,9 +10,19 @@ public class BroadService(
     AppDatabase db,
     IHttpContextAccessor httpContextAccessor,
     RealtimeDeliveryService webSocketService,
-    WorkspaceApiClient workspaceApi
+    WorkspaceApiClient workspaceApi,
+    DyFileService.DyFileServiceClient files
 )
 {
+    private async Task<SnCloudFileReferenceObject> GetFileReference(string fileId, string fieldName)
+    {
+        var file = await files.GetFileAsync(new DyGetFileRequest { Id = fileId });
+        if (file is null)
+            throw new ArgumentException($"{fieldName} file with ID {fileId} was not found.");
+
+        return SnCloudFileReferenceObject.FromProtoValue(file);
+    }
+
     private Guid GetCurrentAccountId()
     {
         return httpContextAccessor.HttpContext?.Items["CurrentUser"] is not SnAccount currentUser
@@ -41,6 +51,12 @@ public class BroadService(
             Content = content,
             Visibility = visibility ?? Visibility.Private
         };
+
+        if (backgroundImageId is not null)
+            broad.BackgroundImage = await GetFileReference(backgroundImageId, "Background image");
+        if (iconImageId is not null)
+            broad.IconImage = await GetFileReference(iconImageId, "Icon image");
+
         db.Broads.Add(broad);
         await db.SaveChangesAsync();
 
@@ -122,6 +138,18 @@ public class BroadService(
         {
             broad.Visibility = visibility.Value;
             changedProperties.Add("visibility");
+        }
+
+        if (backgroundImageId is not null)
+        {
+            broad.BackgroundImage = await GetFileReference(backgroundImageId, "Background image");
+            changedProperties.Add("background_image");
+        }
+
+        if (iconImageId is not null)
+        {
+            broad.IconImage = await GetFileReference(iconImageId, "Icon image");
+            changedProperties.Add("icon_image");
         }
 
         if (changedProperties.Any())

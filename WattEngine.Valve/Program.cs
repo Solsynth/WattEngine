@@ -24,6 +24,7 @@ builder.Services.AddAppAuthentication();
 builder.Services.AddDysonAuth();
 builder.Services.AddDyAuthModelProjection();
 builder.Services.AddAccountService();
+builder.Services.AddDriveService();
 builder.Services.AddWalletService();
 
 builder.Services.AddAppFlushHandlers();

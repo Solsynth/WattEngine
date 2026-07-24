@@ -21,7 +21,9 @@ public class BroadController(BroadService broadService) : ControllerBase
         string? Description,
         string? Content,
         Visibility? Visibility,
-        Guid? WorkspaceId
+        Guid? WorkspaceId,
+        string? BackgroundImageId = null,
+        string? IconImageId = null
     );
 
     public record UpdateBroadRequest(
@@ -33,7 +35,9 @@ public class BroadController(BroadService broadService) : ControllerBase
         string? Description,
         string? Content,
         Visibility? Visibility,
-        Guid? WorkspaceId
+        Guid? WorkspaceId,
+        string? BackgroundImageId = null,
+        string? IconImageId = null
     );
 
     [HttpGet]
@@ -73,8 +77,8 @@ public class BroadController(BroadService broadService) : ControllerBase
                 request.WorkspaceId,
                 request.Description,
                 request.Content,
-                backgroundImageId: null,
-                iconImageId: null,
+                request.BackgroundImageId,
+                request.IconImageId,
                 request.Visibility
             );
             return CreatedAtAction(
@@ -104,8 +108,8 @@ public class BroadController(BroadService broadService) : ControllerBase
                 request.WorkspaceId,
                 request.Description,
                 request.Content,
-                backgroundImageId: null,
-                iconImageId: null,
+                request.BackgroundImageId,
+                request.IconImageId,
                 request.Visibility
             );
             return Ok(broad);

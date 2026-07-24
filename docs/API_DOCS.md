@@ -26,11 +26,11 @@ Returns all workspaces the authenticated user belongs to.
 
 ---
 
-#### Get Workspace by Slug
+#### Get Workspace by Slug or ID
 ```
-GET /api/workspaces/{slug}
+GET /api/workspaces/{slugOrId}
 ```
-Returns a single workspace by its slug.
+Returns a single workspace by its slug or GUID.
 
 **Response:** `WtWorkspace`
 
@@ -50,16 +50,6 @@ Returns a single workspace by its slug.
 
 ---
 
-#### Get Workspace by ID
-```
-GET /api/workspaces/by-id/{id}
-```
-Returns a single workspace by its GUID.
-
-**Response:** `WtWorkspace`
-
----
-
 #### Create Workspace
 ```
 POST /api/workspaces
@@ -72,7 +62,9 @@ Creates a new workspace. The authenticated user becomes the owner.
   "slug": "my-workspace",
   "name": "My Workspace",
   "description": "A workspace for my team",
-  "type": 1
+  "type": 1,
+  "pictureId": "cloud-file-id-for-icon",
+  "backgroundId": "cloud-file-id-for-background"
 }
 ```
 
@@ -82,6 +74,8 @@ Creates a new workspace. The authenticated user becomes the owner.
 | name | `string` | Yes | Display name (max 1024 chars) |
 | description | `string?` | No | Description (max 4096 chars) |
 | type | `WorkspaceType` | Yes | `0` = Individual, `1` = Organization |
+| pictureId | `string?` | No | Cloud file ID for the workspace icon |
+| backgroundId | `string?` | No | Cloud file ID for the workspace background |
 
 **Response:** `201 Created` with `WtWorkspace`
 
@@ -89,7 +83,7 @@ Creates a new workspace. The authenticated user becomes the owner.
 
 #### Update Workspace
 ```
-PATCH /api/workspaces/{slug}
+PATCH /api/workspaces/{slugOrId}
 ```
 Updates workspace name and/or description. Requires Admin or Owner role.
 
@@ -97,7 +91,9 @@ Updates workspace name and/or description. Requires Admin or Owner role.
 ```json
 {
   "name": "Updated Name",
-  "description": "Updated description"
+  "description": "Updated description",
+  "pictureId": "cloud-file-id-for-icon",
+  "backgroundId": "cloud-file-id-for-background"
 }
 ```
 
@@ -105,6 +101,8 @@ Updates workspace name and/or description. Requires Admin or Owner role.
 |-------|------|----------|-------------|
 | name | `string?` | No | New name (max 1024 chars) |
 | description | `string?` | No | New description (max 4096 chars) |
+| pictureId | `string?` | No | Cloud file ID for the workspace icon |
+| backgroundId | `string?` | No | Cloud file ID for the workspace background |
 
 **Response:** `WtWorkspace`
 
@@ -112,7 +110,7 @@ Updates workspace name and/or description. Requires Admin or Owner role.
 
 #### Delete Workspace
 ```
-DELETE /api/workspaces/{slug}
+DELETE /api/workspaces/{slugOrId}
 ```
 Deletes a workspace. Only the owner can delete.
 
@@ -124,7 +122,7 @@ Deletes a workspace. Only the owner can delete.
 
 #### List Members
 ```
-GET /api/workspaces/{slug}/members
+GET /api/workspaces/{slugOrId}/members
 ```
 Lists all members of a workspace. Requires at least Viewer role.
 
@@ -143,7 +141,7 @@ Lists all members of a workspace. Requires at least Viewer role.
 
 #### Invite Member
 ```
-POST /api/workspaces/{slug}/members/invite
+POST /api/workspaces/{slugOrId}/members/invite
 ```
 Invites a user to the workspace. Requires Admin role. Only Owner can invite Admins.
 
@@ -166,7 +164,7 @@ Invites a user to the workspace. Requires Admin role. Only Owner can invite Admi
 
 #### Update Member Role
 ```
-PATCH /api/workspaces/{slug}/members/{accountId}
+PATCH /api/workspaces/{slugOrId}/members/{accountId}
 ```
 Updates a member's role. Requires Admin role. Only Owner can assign Admin.
 
@@ -187,7 +185,7 @@ Updates a member's role. Requires Admin role. Only Owner can assign Admin.
 
 #### Remove Member
 ```
-DELETE /api/workspaces/{slug}/members/{accountId}
+DELETE /api/workspaces/{slugOrId}/members/{accountId}
 ```
 Removes a member from the workspace. Requires Admin role. Cannot remove the owner.
 
@@ -416,7 +414,7 @@ Returns the quota limit for a specific resource type.
 
 #### Assign Bundled Plan
 ```
-POST /api/workspaces/{slug}/plan/assign-bundled
+POST /api/workspaces/{slugOrId}/plan/assign-bundled
 ```
 Assigns a bundled Pro plan to the workspace. Requires Owner and perk level 3+.
 
@@ -426,7 +424,7 @@ Assigns a bundled Pro plan to the workspace. Requires Owner and perk level 3+.
 
 #### Unassign Bundled Plan
 ```
-POST /api/workspaces/{slug}/plan/unassign-bundled
+POST /api/workspaces/{slugOrId}/plan/unassign-bundled
 ```
 Removes the bundled plan assignment.
 
@@ -456,7 +454,7 @@ Reassigns bundled plan to a different workspace. Subject to 7-day cooldown.
 
 #### Subscribe to Plan
 ```
-POST /api/workspaces/{slug}/plan/subscribe
+POST /api/workspaces/{slugOrId}/plan/subscribe
 ```
 Creates a paid plan subscription order. Only Owner can manage subscriptions.
 
@@ -503,7 +501,7 @@ Returns all broads accessible to the authenticated user.
 | workspaceId | `Guid?` | Associated workspace ID |
 | visibility | `Visibility` | `Private` (0) or `Public` (1) |
 | description | `string?` | Description (max 8192 chars) |
-| content | `string?` | Rich text content |
+| content | `string?` | Optional long-form task detail (rich text) |
 | backgroundImage | `SnCloudFileReferenceObject?` | Background image (jsonb) |
 | iconImage | `SnCloudFileReferenceObject?` | Icon image (jsonb) |
 
@@ -532,7 +530,9 @@ Creates a new broad (project board).
   "description": "Tracking project progress",
   "content": "",
   "visibility": 0,
-  "workspaceId": "550e8400-e29b-41d4-a716-446655440000"
+  "workspaceId": "550e8400-e29b-41d4-a716-446655440000",
+  "backgroundImageId": "cloud-file-id-for-background",
+  "iconImageId": "cloud-file-id-for-icon"
 }
 ```
 
@@ -540,9 +540,11 @@ Creates a new broad (project board).
 |-------|------|----------|-------------|
 | name | `string` | Yes | Name (1-256 chars) |
 | description | `string?` | No | Description (max 8192 chars) |
-| content | `string?` | No | Rich text content |
+| content | `string?` | No | Optional long-form task detail (rich text) |
 | visibility | `Visibility?` | No | `0` = Private, `1` = Public |
 | workspaceId | `Guid?` | No | Associate with workspace |
+| backgroundImageId | `string?` | No | Cloud file ID for the board background |
+| iconImageId | `string?` | No | Cloud file ID for the board icon |
 
 **Response:** `201 Created` with `WtBroad`
 
@@ -561,7 +563,9 @@ Updates a broad.
   "description": "Updated description",
   "content": "Updated content",
   "visibility": 1,
-  "workspaceId": "550e8400-..."
+  "workspaceId": "550e8400-...",
+  "backgroundImageId": "cloud-file-id-for-background",
+  "iconImageId": "cloud-file-id-for-icon"
 }
 ```
 
@@ -569,9 +573,11 @@ Updates a broad.
 |-------|------|----------|-------------|
 | name | `string` | Yes | Name (1-256 chars) |
 | description | `string?` | No | Description (max 8192 chars) |
-| content | `string?` | No | Rich text content |
+| content | `string?` | No | Optional long-form task detail (rich text) |
 | visibility | `Visibility?` | No | `0` = Private, `1` = Public |
 | workspaceId | `Guid?` | No | Associate with workspace |
+| backgroundImageId | `string?` | No | Cloud file ID for the board background; omitted leaves the current value unchanged |
+| iconImageId | `string?` | No | Cloud file ID for the board icon; omitted leaves the current value unchanged |
 
 **Response:** `WtBroad`
 
@@ -604,12 +610,14 @@ Returns all tasks within a broad.
 | description | `string?` | Description (max 8192 chars) |
 | content | `string?` | Rich text content |
 | attachments | `List<SnCloudFileReferenceObject>` | File attachments (jsonb) |
+| tags | `List<string>` | Optional task tags |
 | priority | `int` | Priority level (0+) |
 | deadlineAt | `Instant?` | Deadline timestamp |
 | completedAt | `Instant?` | Completion timestamp |
 | completeReason | `TaskCompleteReason?` | `Completed` (0), `Skipped` (1), `Duplicated` (2) |
 | broadId | `Guid` | Parent broad ID |
 | parentTaskId | `Guid?` | Parent task ID (for subtasks) |
+| groupId | `Guid?` | Optional task group; null means ungrouped |
 
 ---
 
@@ -639,7 +647,9 @@ Creates a new task in a broad.
   "priority": 1,
   "deadlineAt": 1700000000,
   "parentTaskId": null,
-  "assigneeAccountIds": ["550e8400-..."]
+  "assigneeAccountIds": ["550e8400-..."],
+  "groupId": "550e8400-...",
+  "tags": ["backend", "urgent"]
 }
 ```
 
@@ -653,6 +663,8 @@ Creates a new task in a broad.
 | deadlineAt | `Instant?` | No | Deadline timestamp |
 | parentTaskId | `Guid?` | No | Parent task for subtasks |
 | assigneeAccountIds | `List<Guid>?` | No | Initial assignees |
+| groupId | `Guid?` | No | Optional task group; omitted leaves the task ungrouped |
+| tags | `List<string>?` | No | Optional tags (each 1-128 characters) |
 
 **Response:** `201 Created` with `WtTask`
 
@@ -673,7 +685,9 @@ Updates a task.
   "attachmentIds": ["file-id-3"],
   "priority": 2,
   "deadlineAt": 1700000000,
-  "completeReason": 0
+  "completeReason": 0,
+  "ungroup": true,
+  "tags": ["backend"]
 }
 ```
 
@@ -686,8 +700,37 @@ Updates a task.
 | priority | `int?` | No | Priority (>= 0) |
 | deadlineAt | `Instant?` | No | Deadline timestamp |
 | completeReason | `TaskCompleteReason?` | No | Mark as completed/skipped/duplicated |
+| groupId | `Guid?` | No | Move to this group |
+| ungroup | `bool?` | No | `true` removes the task from its group |
+| tags | `List<string>?` | No | Replaces tags; an empty list clears them |
 
 **Response:** `WtTask`
+
+---
+
+### Task Group Endpoints
+
+#### List Task Groups
+```
+GET /api/broads/{broadId}/groups
+```
+Lists the board's task groups in position order.
+
+#### Create Task Group
+```
+POST /api/broads/{broadId}/groups
+```
+```json
+{ "name": "In Progress", "position": 1 }
+```
+Both `position` and task membership are optional; tasks without a `groupId` remain ungrouped.
+
+#### Update or Delete Task Group
+```
+PATCH /api/task-groups/{groupId}
+DELETE /api/task-groups/{groupId}
+```
+Deleting a group leaves its tasks intact and ungrouped.
 
 ---
 

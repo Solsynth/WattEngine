@@ -26,7 +26,9 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
         int Priority,
         NodaTime.Instant? DeadlineAt,
         Guid? ParentTaskId,
-        List<Guid>? AssigneeAccountIds
+        List<Guid>? AssigneeAccountIds,
+        Guid? GroupId = null,
+        List<string>? Tags = null
     );
 
     public record UpdateTaskRequest(
@@ -41,7 +43,20 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
         [Range(0, int.MaxValue)]
         int? Priority,
         NodaTime.Instant? DeadlineAt,
-        TaskCompleteReason? CompleteReason
+        TaskCompleteReason? CompleteReason,
+        Guid? GroupId = null,
+        bool? Ungroup = null,
+        List<string>? Tags = null
+    );
+
+    public record CreateTaskGroupRequest(
+        [Required, MinLength(1), MaxLength(256)] string Name,
+        [Range(0, int.MaxValue)] int? Position = null
+    );
+
+    public record UpdateTaskGroupRequest(
+        [Required, MinLength(1), MaxLength(256)] string Name,
+        [Range(0, int.MaxValue)] int? Position = null
     );
 
     public record AssignTaskRequest(
@@ -86,6 +101,44 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
         return Ok(task);
     }
 
+    [HttpGet("broads/{broadId:guid}/groups")]
+    [Authorize]
+    public async Task<IActionResult> ListTaskGroups([FromRoute] Guid broadId)
+    {
+        try { return Ok(await taskService.GetTaskGroupsAsync(broadId)); }
+        catch (KeyNotFoundException) { return NotFound("Broad not found"); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+    }
+
+    [HttpPost("broads/{broadId:guid}/groups")]
+    [Authorize]
+    public async Task<IActionResult> CreateTaskGroup([FromRoute] Guid broadId, [FromBody] CreateTaskGroupRequest request)
+    {
+        try { return Ok(await taskService.CreateTaskGroupAsync(broadId, request.Name, request.Position)); }
+        catch (KeyNotFoundException) { return NotFound("Broad not found"); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (Exception ex) { return BadRequest(ex.Message); }
+    }
+
+    [HttpPatch("task-groups/{groupId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> UpdateTaskGroup([FromRoute] Guid groupId, [FromBody] UpdateTaskGroupRequest request)
+    {
+        try { return Ok(await taskService.UpdateTaskGroupAsync(groupId, request.Name, request.Position)); }
+        catch (KeyNotFoundException) { return NotFound("Task group not found"); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+        catch (Exception ex) { return BadRequest(ex.Message); }
+    }
+
+    [HttpDelete("task-groups/{groupId:guid}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteTaskGroup([FromRoute] Guid groupId)
+    {
+        try { await taskService.DeleteTaskGroupAsync(groupId); return NoContent(); }
+        catch (KeyNotFoundException) { return NotFound("Task group not found"); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+    }
+
     [HttpPost("broads/{broadId:guid}/tasks")]
     [Authorize]
     public async Task<IActionResult> CreateTask([FromRoute] Guid broadId, [FromBody] CreateTaskRequest request)
@@ -97,7 +150,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
         {
             // Convert attachment IDs to SnCloudFileReferenceObject
             List<SnCloudFileReferenceObject>? attachments = null;
-            if (request.AttachmentIds is not null && request.AttachmentIds.Any())
+            if (request.AttachmentIds is not null)
             {
                 attachments = new List<SnCloudFileReferenceObject>();
                 foreach (var attachmentId in request.AttachmentIds)
@@ -118,7 +171,9 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
                 request.Priority,
                 request.DeadlineAt,
                 request.ParentTaskId,
-                request.AssigneeAccountIds
+                request.AssigneeAccountIds,
+                request.GroupId,
+                request.Tags
             );
             return CreatedAtAction(
                 nameof(GetTask),
@@ -150,8 +205,11 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
         try
         {
             // Convert attachment IDs to SnCloudFileReferenceObject
+            if (request.GroupId.HasValue && request.Ungroup == true)
+                return BadRequest("GroupId and Ungroup cannot both be specified.");
+
             List<SnCloudFileReferenceObject>? attachments = null;
-            if (request.AttachmentIds is not null && request.AttachmentIds.Any())
+            if (request.AttachmentIds is not null)
             {
                 attachments = [];
                 foreach (var attachmentId in request.AttachmentIds)
@@ -171,7 +229,10 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
                 attachments,
                 request.Priority,
                 request.DeadlineAt,
-                request.CompleteReason
+                request.CompleteReason,
+                request.GroupId,
+                request.Ungroup == true,
+                request.Tags
             );
             return Ok(task);
         }
