@@ -96,9 +96,16 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
-        var task = await taskService.GetTaskAsync(taskId);
-        if (task == null) return NotFound("Task not found or no access");
-        return Ok(task);
+        try
+        {
+            var task = await taskService.GetTaskAsync(taskId);
+            if (task == null) return NotFound("Task not found or no access");
+            return Ok(task);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
     }
 
     [HttpGet("broads/{broadId:guid}/groups")]

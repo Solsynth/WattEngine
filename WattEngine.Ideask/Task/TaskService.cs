@@ -147,6 +147,7 @@ public class TaskService(
     {
         var accountId = GetCurrentAccountId();
         var task = await db.Tasks
+            .Include(t => t.Broad)
             .Include(t => t.Assignees)
             .FirstOrDefaultAsync(t => t.Id == taskId);
 
