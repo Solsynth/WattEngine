@@ -58,7 +58,7 @@ public class WtWorkspaceMember : ModelBase
     public Guid WorkspaceId { get; set; }
     [JsonIgnore] public WtWorkspace Workspace { get; set; } = null!;
     public Guid AccountId { get; set; }
-    [NotMapped, JsonIgnore] public SnAccount? Account { get; set; }
+    [NotMapped] public SnAccount? Account { get; set; }
     public int Role { get; set; } = WorkspaceMemberRole.Viewer;
     public Instant? JoinedAt { get; set; }
     public Instant? LeaveAt { get; set; }

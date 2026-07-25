@@ -133,6 +133,7 @@ Lists all members of a workspace. Requires at least Viewer role.
 | id | `Guid` | Unique identifier |
 | workspaceId | `Guid` | Parent workspace ID |
 | accountId | `Guid` | Member account ID |
+| account | `SnAccount?` | Account details hydrated from the Account service. `null` when the account cannot be found. |
 | role | `int` | Role level (25=Viewer, 50=Member, 75=Admin, 100=Owner) |
 | joinedAt | `Instant?` | When the member joined |
 | leaveAt | `Instant?` | When the member left |

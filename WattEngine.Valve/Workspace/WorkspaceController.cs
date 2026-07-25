@@ -180,7 +180,8 @@ public class WorkspaceController(
         if (!await ws.IsMemberWithRole(workspace.Id, currentUser.Id, WorkspaceMemberRole.Viewer))
             return StatusCode(403, "Insufficient permissions.");
 
-        return await ws.GetMembers(workspace.Id);
+        var members = await ws.GetMembers(workspace.Id);
+        return await ws.LoadMemberAccounts(members);
     }
 
     [HttpPost("{slug}/members/invite")]

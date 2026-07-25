@@ -102,6 +102,29 @@ public class WorkspaceService(
             .ToListAsync();
     }
 
+    public async Task<List<WtWorkspaceMember>> LoadMemberAccounts(ICollection<WtWorkspaceMember> members)
+    {
+        var result = members.ToList();
+        if (result.Count == 0) return result;
+
+        var accountIds = result.Select(m => m.AccountId).Distinct().ToList();
+        var accounts = await accountGrpc.GetAccountBatchAsync(new DyGetAccountBatchRequest
+        {
+            Id = { accountIds.Select(id => id.ToString()) }
+        });
+        var accountsById = accounts.Accounts
+            .Select(SnAccount.FromProtoValue)
+            .ToDictionary(account => account.Id);
+
+        foreach (var member in result)
+        {
+            if (accountsById.TryGetValue(member.AccountId, out var account))
+                member.Account = account;
+        }
+
+        return result;
+    }
+
     public async Task<WtWorkspaceMember> InviteMember(Guid workspaceId, Guid accountId, int role)
     {
         var existing = await db.WorkspaceMembers
