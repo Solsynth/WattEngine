@@ -4,10 +4,10 @@ using DysonNetwork.Shared.Cache;
 using DysonNetwork.Shared.Registry;
 using NodaTime;
 using NodaTime.Serialization.SystemTextJson;
-using WattEngine.Ideask.Broad;
 using WattEngine.Ideask.Connectivity;
 using WattEngine.Ideask.Task;
 using WattEngine.Ideask.GitHub;
+using WattEngine.Ideask.Broad;
 
 namespace WattEngine.Ideask.Startup;
 
@@ -64,14 +64,10 @@ public static class ServiceCollectionExtensions
             services.AddScoped<GitHubIntegrationService>();
             services.AddScoped<GitHubApiClient>();
             services.AddScoped<RealtimeDeliveryService>();
-            services.AddScoped<WorkspaceApiClient>();
             services.AddHostedService<TaskReminderService>();
 
-            // HttpClient for Valve workspace API
-            services.AddHttpClient("valve", client =>
-            {
-                client.Timeout = TimeSpan.FromSeconds(10);
-            });
+            // External GitHub API only. Solar Network services use gRPC
+            // (AddDriveService / AddWorkspaceService / AddRingService / …).
             services.AddHttpClient("github", client =>
             {
                 client.BaseAddress = new Uri("https://api.github.com/");

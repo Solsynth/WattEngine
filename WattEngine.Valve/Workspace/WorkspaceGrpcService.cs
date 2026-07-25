@@ -151,4 +151,13 @@ public class WorkspaceGrpcService(
         }
         return response;
     }
+
+    public override async Task<DyListWorkspaceMembersResponse> ListMembers(
+        DyListWorkspaceMembersRequest request, ServerCallContext context)
+    {
+        var members = await workspaces.GetMembers(ParseId(request.WorkspaceId, "workspace_id"));
+        var response = new DyListWorkspaceMembersResponse();
+        response.Members.AddRange(members.Select(ToProto));
+        return response;
+    }
 }

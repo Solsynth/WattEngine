@@ -1,5 +1,6 @@
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
+using DysonNetwork.Shared.Registry;
 using Microsoft.EntityFrameworkCore;
 using WattEngine.Ideask.Connectivity;
 using WattEngine.Ideask.Models.WebSocket;
@@ -10,7 +11,7 @@ public class BroadService(
     AppDatabase db,
     IHttpContextAccessor httpContextAccessor,
     RealtimeDeliveryService webSocketService,
-    WorkspaceApiClient workspaceApi,
+    RemoteWorkspaceService workspaces,
     DyFileService.DyFileServiceClient files
 )
 {
@@ -69,7 +70,7 @@ public class BroadService(
 
     private async System.Threading.Tasks.Task CheckBroadQuota(Guid workspaceId)
     {
-        var plan = await workspaceApi.GetWorkspacePlan(workspaceId);
+        var plan = (WorkspacePlan)await workspaces.GetPlan(workspaceId);
         var maxBroads = WorkspacePlanQuota.GetMaxBroadsPerProject(plan);
 
         var broadCount = await db.Broads

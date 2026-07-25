@@ -21,6 +21,7 @@ builder.Services.AddDyAuthModelProjection();
 builder.Services.AddRingService();
 builder.Services.AddAccountService();
 builder.Services.AddDriveService();
+builder.Services.AddWorkspaceService();
 
 builder.Services.AddAppFlushHandlers();
 builder.Services.AddAppBusinessServices(builder.Configuration);

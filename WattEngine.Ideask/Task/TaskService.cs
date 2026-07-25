@@ -1,6 +1,7 @@
 using DysonNetwork.Shared;
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
+using DysonNetwork.Shared.Registry;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using WattEngine.Ideask.Broad;
@@ -16,7 +17,7 @@ public class TaskService(
     IHttpContextAccessor httpContextAccessor,
     ILogger<TaskService> logger,
     RealtimeDeliveryService webSocketService,
-    WorkspaceApiClient workspaceApi,
+    RemoteWorkspaceService workspaces,
     GitHubIntegrationService githubIntegration
 )
 #pragma warning restore CS9113
@@ -121,7 +122,7 @@ public class TaskService(
 
     private async System.Threading.Tasks.Task CheckTaskQuota(WtBroad broad)
     {
-        var plan = await workspaceApi.GetWorkspacePlan(broad.WorkspaceId!.Value);
+        var plan = (WorkspacePlan)await workspaces.GetPlan(broad.WorkspaceId!.Value);
         var maxTasks = WorkspacePlanQuota.GetMaxTasksPerProject(plan);
 
         var taskCount = await db.Tasks

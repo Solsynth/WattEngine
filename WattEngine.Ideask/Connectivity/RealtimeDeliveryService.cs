@@ -11,7 +11,7 @@ public class RealtimeDeliveryService(
     RemoteRingService ringService,
     ILogger<RealtimeDeliveryService> logger,
     IClock clock,
-    WorkspaceApiClient workspaceApi,
+    RemoteWorkspaceService workspaces,
     IConfiguration configuration
 )
 {
@@ -65,7 +65,7 @@ public class RealtimeDeliveryService(
         {
             try
             {
-                recipients.UnionWith(await workspaceApi.GetActiveMemberAccountIds(broad.WorkspaceId.Value));
+                recipients.UnionWith(await workspaces.GetActiveMemberAccountIds(broad.WorkspaceId.Value));
             }
             catch (Exception ex)
             {

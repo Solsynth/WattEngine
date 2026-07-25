@@ -4,16 +4,31 @@
 
 ## Client setup
 
-Register or construct `DyWorkspaceService.DyWorkspaceServiceClient` using the Valve gRPC endpoint. All IDs below are GUID strings.
+Inter-service callers **must use gRPC**, never Valve HTTP (`/api/workspaces`).
+
+Register with the shared helper (Blade discovery → `https://_grpc.valve`):
 
 ```csharp
-using DysonNetwork.Shared.Proto;
-
-var workspace = await client.GetWorkspaceAsync(new DyGetWorkspaceRequest
-{
-    Slug = "my-workspace"
-});
+// Program.cs
+builder.Services.AddWorkspaceService(); // registers DyWorkspaceServiceClient + RemoteWorkspaceService
 ```
+
+Prefer `RemoteWorkspaceService` (same pattern as `RemoteRealmService` / `RemoteRingService`):
+
+```csharp
+using DysonNetwork.Shared.Registry;
+
+public class Example(RemoteWorkspaceService workspaces)
+{
+    public async Task Demo()
+    {
+        var workspace = await workspaces.GetWorkspaceBySlug("my-workspace");
+        var plan = await workspaces.GetPlan(Guid.Parse(workspace.Id));
+    }
+}
+```
+
+Or inject `DyWorkspaceService.DyWorkspaceServiceClient` directly. All IDs are GUID strings.
 
 ## Methods
 
