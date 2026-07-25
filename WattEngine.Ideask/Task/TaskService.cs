@@ -107,7 +107,7 @@ public class TaskService(
         // Send WebSocket notification
         var packet = webSocketService.CreateTaskCreatedPacket(task, broad, accountId);
         var userIds = new List<string> { accountId.ToString() };
-        await webSocketService.SendToUsersAsync(userIds, packet);
+        await webSocketService.SendTaskPacketAsync(broad, userIds, packet);
 
         if (assigneeAccountIds != null && assigneeAccountIds.Any())
         {
@@ -273,7 +273,7 @@ public class TaskService(
         if (changedProperties.Any())
         {
             var packet = webSocketService.CreateTaskUpdatedPacket(task, broad, changedProperties, accountId);
-            await webSocketService.SendToUsersAsync(new List<string> { accountId.ToString() }, packet);
+            await webSocketService.SendTaskPacketAsync(broad, [accountId.ToString()], packet);
         }
 
         if (changedProperties.Any(property => property is "name" or "content" or "tags" or "complete_reason"))
@@ -348,7 +348,7 @@ public class TaskService(
             new List<string> { "deleted" },
             accountId
         );
-        await webSocketService.SendToUsersAsync(new List<string> { accountId.ToString() }, packet);
+        await webSocketService.SendTaskPacketAsync(broad, [accountId.ToString()], packet);
     }
 
     public async System.Threading.Tasks.Task AssignTaskAsync(Guid taskId, List<Guid> assigneeAccountIds)
@@ -400,7 +400,7 @@ public class TaskService(
                 removedAccountIds.Select(id => id.ToString()).ToList(),
                 accountId
             );
-            await webSocketService.SendToUsersAsync(allUserIds.Distinct().ToList(), packet);
+            await webSocketService.SendTaskPacketAsync(broad, allUserIds, packet);
         }
     }
 
@@ -431,8 +431,9 @@ public class TaskService(
             new List<string> { assigneeAccountId.ToString() },
             accountId
         );
-        await webSocketService.SendToUsersAsync(
-            new List<string> { accountId.ToString(), assigneeAccountId.ToString() },
+        await webSocketService.SendTaskPacketAsync(
+            broad,
+            [accountId.ToString(), assigneeAccountId.ToString()],
             packet
         );
     }

@@ -29,7 +29,7 @@ public class TaskCommentService(AppDatabase db, IHttpContextAccessor context, Re
         var comment = new WtTaskComment { TaskId = taskId, AuthorAccountId = AccountId(), Content = content };
         db.TaskComments.Add(comment); await db.SaveChangesAsync();
         await github.SyncLocalCommentAsync(comment.Id);
-        await realtime.SendToUsersAsync([task.Broad.AccountId.ToString()], realtime.CreateTaskUpdatedPacket(task, task.Broad, ["comments"], AccountId()));
+        await realtime.SendTaskPacketAsync(task.Broad, [task.Broad.AccountId.ToString()], realtime.CreateTaskUpdatedPacket(task, task.Broad, ["comments"], AccountId()));
         return comment;
     }
 

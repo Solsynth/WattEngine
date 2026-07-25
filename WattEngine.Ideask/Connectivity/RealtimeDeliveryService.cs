@@ -1,4 +1,5 @@
 using DysonNetwork.Shared.Registry;
+using Microsoft.Extensions.Configuration;
 using NodaTime;
 using WattEngine.Ideask.Broad;
 using WattEngine.Ideask.Models.WebSocket;
@@ -9,9 +10,20 @@ namespace WattEngine.Ideask.Connectivity;
 public class RealtimeDeliveryService(
     RemoteRingService ringService,
     ILogger<RealtimeDeliveryService> logger,
-    IClock clock
+    IClock clock,
+    WorkspaceApiClient workspaceApi,
+    IConfiguration configuration
 )
 {
+    /// <summary>
+    /// Blade wsgateway namespace for SolWatt clients (`?namespace=`).
+    /// Must match the client product tenant id (Ring app id / bundle id).
+    /// </summary>
+    private string WebsocketNamespace =>
+        configuration["Realtime:WebsocketNamespace"]
+        ?? configuration["SolWatt:AppId"]
+        ?? "dev.solsynth.solarwatt";
+
     public async System.Threading.Tasks.Task SendToUsersAsync(
         List<string> userIds,
         IdeaskWebSocketPacket packet,
@@ -22,13 +34,15 @@ public class RealtimeDeliveryService(
         {
             var webSocketPacket = packet.ToWebSocketPacket();
             var packetBytes = webSocketPacket.ToBytes();
+            var ns = WebsocketNamespace;
 
             foreach (var userId in userIds)
             {
                 await ringService.SendWebSocketPacketToUser(
                     userId,
                     webSocketPacket.Type,
-                    packetBytes
+                    packetBytes,
+                    @namespace: ns
                 );
             }
         }
@@ -36,6 +50,31 @@ public class RealtimeDeliveryService(
         {
             logger.LogError(ex, "Failed to send WebSocket packet to {UserCount} users", userIds.Count);
         }
+    }
+
+    public async System.Threading.Tasks.Task SendTaskPacketAsync(
+        WtBroad broad,
+        IEnumerable<string> recipientUserIds,
+        IdeaskWebSocketPacket packet,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var recipients = recipientUserIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (broad.WorkspaceId.HasValue)
+        {
+            try
+            {
+                recipients.UnionWith(await workspaceApi.GetActiveMemberAccountIds(broad.WorkspaceId.Value));
+            }
+            catch (Exception ex)
+            {
+                // Do not fail a task mutation merely because collaboration delivery cannot expand recipients.
+                logger.LogWarning(ex, "Failed to load members of workspace {WorkspaceId} for task packet delivery", broad.WorkspaceId);
+            }
+        }
+
+        await SendToUsersAsync(recipients.ToList(), packet, cancellationToken);
     }
 
     public IdeaskWebSocketPacket CreateTaskAssignedPacket(
