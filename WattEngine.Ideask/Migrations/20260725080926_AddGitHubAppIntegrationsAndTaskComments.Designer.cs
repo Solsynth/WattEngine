@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using DysonNetwork.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NodaTime;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -14,9 +15,11 @@ using WattEngine.Ideask;
 namespace WattEngine.Ideask.Migrations
 {
     [DbContext(typeof(AppDatabase))]
-    partial class AppDatabaseModelSnapshot : ModelSnapshot
+    [Migration("20260725080926_AddGitHubAppIntegrationsAndTaskComments")]
+    partial class AddGitHubAppIntegrationsAndTaskComments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -123,60 +126,6 @@ namespace WattEngine.Ideask.Migrations
                         .HasDatabaseName("ix_git_hub_comment_links_git_hub_comment_id");
 
                     b.ToTable("git_hub_comment_links", (string)null);
-                });
-
-            modelBuilder.Entity("WattEngine.Ideask.GitHub.WtGitHubInstallationGrant", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("AccountId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("account_id");
-
-                    b.Property<Guid>("BroadId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("broad_id");
-
-                    b.Property<Instant>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<Instant?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Instant>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("expires_at");
-
-                    b.Property<long?>("InstallationId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("installation_id");
-
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)")
-                        .HasColumnName("state");
-
-                    b.Property<Instant>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_git_hub_installation_grants");
-
-                    b.HasIndex("State")
-                        .IsUnique()
-                        .HasDatabaseName("ix_git_hub_installation_grants_state");
-
-                    b.HasIndex("BroadId", "AccountId")
-                        .HasDatabaseName("ix_git_hub_installation_grants_broad_id_account_id");
-
-                    b.ToTable("git_hub_installation_grants", (string)null);
                 });
 
             modelBuilder.Entity("WattEngine.Ideask.GitHub.WtGitHubIntegration", b =>

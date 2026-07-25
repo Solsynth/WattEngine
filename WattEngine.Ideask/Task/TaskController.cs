@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace WattEngine.Ideask.Task;
 
 [ApiController]
-[ApiFeature("ideask.tasks", Revision = 1)]
+[ApiFeature("ideask.tasks", Revision = 2)]
 [Route("/api")]
 public class TaskController(TaskService taskService, DyFileService.DyFileServiceClient files) : ControllerBase
 {
@@ -62,6 +62,8 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
     public record AssignTaskRequest(
         [Required] List<Guid> AssigneeAccountIds
     );
+    public record CreateTaskCommentRequest([Required, MinLength(1), MaxLength(65536)] string Content);
+    public record UpdateTaskCommentRequest([Required, MinLength(1), MaxLength(65536)] string Content);
 
     [HttpGet("broads/{broadId:guid}/tasks")]
     [Authorize]

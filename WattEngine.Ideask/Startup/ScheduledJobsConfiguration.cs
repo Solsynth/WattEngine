@@ -1,4 +1,5 @@
 using Quartz;
+using WattEngine.Ideask.GitHub;
 
 namespace WattEngine.Ideask.Startup;
 
@@ -14,6 +15,10 @@ public static class ScheduledJobsConfiguration
                 .ForJob(appDatabaseRecyclingJob)
                 .WithIdentity("AppDatabaseRecyclingTrigger")
                 .WithCronSchedule("0 0 0 * * ?"));
+            var githubSyncJob = new JobKey("GitHubReconciliation");
+            q.AddJob<GitHubReconciliationJob>(opts => opts.WithIdentity(githubSyncJob));
+            q.AddTrigger(opts => opts.ForJob(githubSyncJob).WithIdentity("GitHubReconciliationTrigger")
+                .WithCronSchedule("0 0 */15 * * ?"));
         });
         services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 

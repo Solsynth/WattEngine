@@ -5,6 +5,7 @@ using DysonNetwork.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using WattEngine.Ideask.Broad;
+using WattEngine.Ideask.GitHub;
 
 namespace WattEngine.Ideask.Task;
 
@@ -45,6 +46,8 @@ public class WtTask : ModelBase
     public ICollection<WtTask> SubTasks { get; set; } = new List<WtTask>();
     [JsonIgnore]
     public ICollection<WtTaskAssignee> Assignees { get; set; } = new List<WtTaskAssignee>();
+    [JsonIgnore] public ICollection<WtTaskComment> Comments { get; set; } = new List<WtTaskComment>();
+    public WtGitHubIssueLink? GitHubIssue { get; set; }
 }
 
 [Index(nameof(BroadId), nameof(Position))]
@@ -66,4 +69,17 @@ public class WtTaskAssignee : ModelBase
     public Guid TaskId { get; set; }
     [JsonIgnore] public WtTask Task { get; set; } = null!;
     public Guid AccountId { get; set; }
+}
+
+[Index(nameof(TaskId), nameof(CreatedAt))]
+public class WtTaskComment : ModelBase
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TaskId { get; set; }
+    [JsonIgnore] public WtTask Task { get; set; } = null!;
+    public Guid? AuthorAccountId { get; set; }
+    [MaxLength(256)] public string? ExternalAuthorLogin { get; set; }
+    [MaxLength(2048)] public string? ExternalAuthorAvatarUrl { get; set; }
+    [Required, Column(TypeName = "text")] public string Content { get; set; } = null!;
+    public WtGitHubCommentLink? GitHubComment { get; set; }
 }

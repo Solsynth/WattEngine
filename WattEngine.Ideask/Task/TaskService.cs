@@ -6,6 +6,7 @@ using NodaTime;
 using WattEngine.Ideask.Broad;
 using WattEngine.Ideask.Connectivity;
 using WattEngine.Ideask.Models.WebSocket;
+using WattEngine.Ideask.GitHub;
 
 namespace WattEngine.Ideask.Task;
 
@@ -15,7 +16,8 @@ public class TaskService(
     IHttpContextAccessor httpContextAccessor,
     ILogger<TaskService> logger,
     RealtimeDeliveryService webSocketService,
-    WorkspaceApiClient workspaceApi
+    WorkspaceApiClient workspaceApi,
+    GitHubIntegrationService githubIntegration
 )
 #pragma warning restore CS9113
 {
@@ -112,6 +114,8 @@ public class TaskService(
             await AssignTaskAsync(task.Id, assigneeAccountIds);
         }
 
+        await githubIntegration.SyncLocalTaskAsync(task.Id);
+
         return task;
     }
 
@@ -140,6 +144,7 @@ public class TaskService(
 
         return await db.Tasks
             .Where(t => t.BroadId == broadId)
+            .Include(t => t.GitHubIssue)
             .ToListAsync();
     }
 
@@ -149,6 +154,7 @@ public class TaskService(
         var task = await db.Tasks
             .Include(t => t.Broad)
             .Include(t => t.Assignees)
+            .Include(t => t.GitHubIssue)
             .FirstOrDefaultAsync(t => t.Id == taskId);
 
         if (task == null) return null;
@@ -269,6 +275,9 @@ public class TaskService(
             var packet = webSocketService.CreateTaskUpdatedPacket(task, broad, changedProperties, accountId);
             await webSocketService.SendToUsersAsync(new List<string> { accountId.ToString() }, packet);
         }
+
+        if (changedProperties.Any(property => property is "name" or "content" or "tags" or "complete_reason"))
+            await githubIntegration.SyncLocalTaskAsync(task.Id);
 
         return task;
     }

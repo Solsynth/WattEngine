@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Design;
 using NodaTime;
 using Quartz;
 using WattEngine.Ideask.Broad;
+using WattEngine.Ideask.GitHub;
 using WattEngine.Ideask.Task;
 
 namespace WattEngine.Ideask;
@@ -19,6 +20,11 @@ public class AppDatabase(
     public DbSet<WtTaskGroup> TaskGroups { get; set; } = null!;
     public DbSet<WtBroad> Broads { get; set; } = null!;
     public DbSet<WtTaskAssignee> TaskAssignees { get; set; } = null!;
+    public DbSet<WtTaskComment> TaskComments { get; set; } = null!;
+    public DbSet<WtGitHubIntegration> GitHubIntegrations { get; set; } = null!;
+    public DbSet<WtGitHubIssueLink> GitHubIssueLinks { get; set; } = null!;
+    public DbSet<WtGitHubCommentLink> GitHubCommentLinks { get; set; } = null!;
+    public DbSet<WtGitHubInstallationGrant> GitHubInstallationGrants { get; set; } = null!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -56,6 +62,17 @@ public class AppDatabase(
             .HasMany(t => t.Assignees)
             .WithOne(a => a.Task)
             .HasForeignKey(a => a.TaskId);
+
+        modelBuilder.Entity<WtTask>()
+            .HasMany(t => t.Comments).WithOne(c => c.Task).HasForeignKey(c => c.TaskId);
+        modelBuilder.Entity<WtTask>()
+            .HasOne(t => t.GitHubIssue).WithOne(l => l.Task).HasForeignKey<WtGitHubIssueLink>(l => l.TaskId);
+        modelBuilder.Entity<WtBroad>()
+            .HasOne<WtGitHubIntegration>().WithOne(i => i.Broad).HasForeignKey<WtGitHubIntegration>(i => i.BroadId);
+        modelBuilder.Entity<WtGitHubIntegration>()
+            .HasMany<WtGitHubIssueLink>().WithOne(l => l.Integration).HasForeignKey(l => l.IntegrationId);
+        modelBuilder.Entity<WtTaskComment>()
+            .HasOne(c => c.GitHubComment).WithOne(l => l.Comment).HasForeignKey<WtGitHubCommentLink>(l => l.CommentId);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

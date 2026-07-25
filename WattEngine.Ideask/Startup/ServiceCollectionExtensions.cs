@@ -7,6 +7,7 @@ using NodaTime.Serialization.SystemTextJson;
 using WattEngine.Ideask.Broad;
 using WattEngine.Ideask.Connectivity;
 using WattEngine.Ideask.Task;
+using WattEngine.Ideask.GitHub;
 
 namespace WattEngine.Ideask.Startup;
 
@@ -59,6 +60,9 @@ public static class ServiceCollectionExtensions
         {
             services.AddScoped<BroadService>();
             services.AddScoped<TaskService>();
+            services.AddScoped<TaskCommentService>();
+            services.AddScoped<GitHubIntegrationService>();
+            services.AddScoped<GitHubApiClient>();
             services.AddScoped<RealtimeDeliveryService>();
             services.AddScoped<WorkspaceApiClient>();
             services.AddHostedService<TaskReminderService>();
@@ -67,6 +71,11 @@ public static class ServiceCollectionExtensions
             services.AddHttpClient("valve", client =>
             {
                 client.Timeout = TimeSpan.FromSeconds(10);
+            });
+            services.AddHttpClient("github", client =>
+            {
+                client.BaseAddress = new Uri("https://api.github.com/");
+                client.Timeout = TimeSpan.FromSeconds(30);
             });
 
             return services;
