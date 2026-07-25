@@ -16,7 +16,6 @@ namespace WattEngine.Valve.Workspace;
 public class WorkspaceController(
     AppDatabase db,
     WorkspaceService ws,
-    DyAccountService.DyAccountServiceClient accountGrpc,
     DyFileService.DyFileServiceClient files
 ) : Controller
 #pragma warning restore CS9113

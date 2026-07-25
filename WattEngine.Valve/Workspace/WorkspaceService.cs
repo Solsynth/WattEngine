@@ -11,7 +11,7 @@ namespace WattEngine.Valve.Workspace;
 public class WorkspaceService(
     AppDatabase db,
     ICacheService cache,
-    DyAccountService.DyAccountServiceClient accountGrpc,
+    DyProfileService.DyProfileServiceClient profileGrpc,
     RemotePaymentService payments
 )
 #pragma warning restore CS9113
@@ -108,7 +108,7 @@ public class WorkspaceService(
         if (result.Count == 0) return result;
 
         var accountIds = result.Select(m => m.AccountId).Distinct().ToList();
-        var accounts = await accountGrpc.GetAccountBatchAsync(new DyGetAccountBatchRequest
+        var accounts = await profileGrpc.GetAccountBatchAsync(new DyGetAccountBatchRequest
         {
             Id = { accountIds.Select(id => id.ToString()) }
         });
