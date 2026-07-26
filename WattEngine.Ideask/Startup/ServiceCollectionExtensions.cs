@@ -63,6 +63,8 @@ public static class ServiceCollectionExtensions
             services.AddScoped<TaskCommentService>();
             services.AddScoped<GitHubIntegrationService>();
             services.AddScoped<GitHubApiClient>();
+            services.AddSingleton<GitHubSyncQueue>();
+            services.AddHostedService<GitHubSyncWorker>();
             services.AddScoped<RealtimeDeliveryService>();
             services.AddHostedService<TaskReminderService>();
 

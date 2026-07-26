@@ -47,7 +47,9 @@ public class WtTask : ModelBase
     [JsonIgnore]
     public ICollection<WtTaskAssignee> Assignees { get; set; } = new List<WtTaskAssignee>();
     [JsonIgnore] public ICollection<WtTaskComment> Comments { get; set; } = new List<WtTaskComment>();
-    public WtGitHubIssueLink? GitHubIssue { get; set; }
+    public ICollection<WtGitHubIssueLink> GitHubIssues { get; set; } = new List<WtGitHubIssueLink>();
+    // Compatibility for clients that have not yet adopted the multi-repository field.
+    [NotMapped] public WtGitHubIssueLink? GitHubIssue => GitHubIssues.FirstOrDefault();
 }
 
 [Index(nameof(BroadId), nameof(Position))]
@@ -81,5 +83,5 @@ public class WtTaskComment : ModelBase
     [MaxLength(256)] public string? ExternalAuthorLogin { get; set; }
     [MaxLength(2048)] public string? ExternalAuthorAvatarUrl { get; set; }
     [Required, Column(TypeName = "text")] public string Content { get; set; } = null!;
-    public WtGitHubCommentLink? GitHubComment { get; set; }
+    public ICollection<WtGitHubCommentLink> GitHubComments { get; set; } = new List<WtGitHubCommentLink>();
 }

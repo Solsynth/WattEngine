@@ -20,7 +20,7 @@ public class TaskCommentService(AppDatabase db, IHttpContextAccessor context, Re
     public async Task<List<WtTaskComment>> ListAsync(Guid taskId)
     {
         await OwnedTaskAsync(taskId);
-        return await db.TaskComments.Where(c => c.TaskId == taskId).Include(c => c.GitHubComment).OrderBy(c => c.CreatedAt).ToListAsync();
+        return await db.TaskComments.Where(c => c.TaskId == taskId).Include(c => c.GitHubComments).OrderBy(c => c.CreatedAt).ToListAsync();
     }
 
     public async Task<WtTaskComment> CreateAsync(Guid taskId, string content)

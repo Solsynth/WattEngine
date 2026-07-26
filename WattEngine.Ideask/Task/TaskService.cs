@@ -145,7 +145,7 @@ public class TaskService(
 
         return await db.Tasks
             .Where(t => t.BroadId == broadId)
-            .Include(t => t.GitHubIssue)
+            .Include(t => t.GitHubIssues)
             .ToListAsync();
     }
 
@@ -155,7 +155,7 @@ public class TaskService(
         var task = await db.Tasks
             .Include(t => t.Broad)
             .Include(t => t.Assignees)
-            .Include(t => t.GitHubIssue)
+            .Include(t => t.GitHubIssues)
             .FirstOrDefaultAsync(t => t.Id == taskId);
 
         if (task == null) return null;

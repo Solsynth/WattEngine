@@ -8,7 +8,7 @@ using WattEngine.Ideask.Task;
 
 namespace WattEngine.Ideask.GitHub;
 
-[Index(nameof(BroadId), IsUnique = true)]
+[Index(nameof(BroadId))]
 [Index(nameof(GitHubRepositoryId), IsUnique = true)]
 public class WtGitHubIntegration : ModelBase
 {
@@ -24,19 +24,20 @@ public class WtGitHubIntegration : ModelBase
 }
 
 [Index(nameof(State), IsUnique = true)]
-[Index(nameof(BroadId), nameof(AccountId))]
+[Index(nameof(WorkspaceId), nameof(AccountId))]
 public class WtGitHubInstallationGrant : ModelBase
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid BroadId { get; set; }
+    public Guid? WorkspaceId { get; set; }
     public Guid AccountId { get; set; }
     [MaxLength(128)] public string State { get; set; } = null!;
     public long? InstallationId { get; set; }
     public Instant ExpiresAt { get; set; }
+    public Instant? CompletedAt { get; set; }
 }
 
 [Index(nameof(IntegrationId), nameof(GitHubIssueId), IsUnique = true)]
-[Index(nameof(TaskId), IsUnique = true)]
+[Index(nameof(IntegrationId), nameof(TaskId), IsUnique = true)]
 public class WtGitHubIssueLink : ModelBase
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -50,12 +51,13 @@ public class WtGitHubIssueLink : ModelBase
     public Instant? LastGitHubUpdatedAt { get; set; }
 }
 
-[Index(nameof(CommentId), IsUnique = true)]
+[Index(nameof(IntegrationId), nameof(CommentId), IsUnique = true)]
 [Index(nameof(GitHubCommentId), IsUnique = true)]
 public class WtGitHubCommentLink : ModelBase
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid CommentId { get; set; }
     [JsonIgnore] public WtTaskComment Comment { get; set; } = null!;
+    public Guid IntegrationId { get; set; }
     public long GitHubCommentId { get; set; }
 }

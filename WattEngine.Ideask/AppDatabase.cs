@@ -66,13 +66,13 @@ public class AppDatabase(
         modelBuilder.Entity<WtTask>()
             .HasMany(t => t.Comments).WithOne(c => c.Task).HasForeignKey(c => c.TaskId);
         modelBuilder.Entity<WtTask>()
-            .HasOne(t => t.GitHubIssue).WithOne(l => l.Task).HasForeignKey<WtGitHubIssueLink>(l => l.TaskId);
+            .HasMany(t => t.GitHubIssues).WithOne(l => l.Task).HasForeignKey(l => l.TaskId);
         modelBuilder.Entity<WtBroad>()
             .HasOne<WtGitHubIntegration>().WithOne(i => i.Broad).HasForeignKey<WtGitHubIntegration>(i => i.BroadId);
         modelBuilder.Entity<WtGitHubIntegration>()
             .HasMany<WtGitHubIssueLink>().WithOne(l => l.Integration).HasForeignKey(l => l.IntegrationId);
         modelBuilder.Entity<WtTaskComment>()
-            .HasOne(c => c.GitHubComment).WithOne(l => l.Comment).HasForeignKey<WtGitHubCommentLink>(l => l.CommentId);
+            .HasMany(c => c.GitHubComments).WithOne(l => l.Comment).HasForeignKey(l => l.CommentId);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

@@ -60,16 +60,16 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
     [HttpPost("broads/{broadId:guid}/sync"), Authorize]
     public async Task<IActionResult> Sync(Guid broadId)
     {
-        try { await integrations.ReconcileAsync(broadId, HttpContext.RequestAborted); return NoContent(); }
+        try { await integrations.EnqueueBroadSyncAsync(broadId, HttpContext.RequestAborted); return Accepted(); }
         catch (KeyNotFoundException) { return NotFound(); }
         catch (UnauthorizedAccessException) { return Forbid(); }
         catch (Exception ex) { return BadRequest(ex.Message); }
     }
 
-    [HttpDelete("broads/{broadId:guid}"), Authorize]
-    public async Task<IActionResult> Unlink(Guid broadId)
+    [HttpDelete("integrations/{integrationId:guid}"), Authorize]
+    public async Task<IActionResult> Unlink(Guid integrationId)
     {
-        try { await integrations.UnlinkAsync(broadId, HttpContext.RequestAborted); return NoContent(); }
+        try { await integrations.UnlinkAsync(integrationId, HttpContext.RequestAborted); return NoContent(); }
         catch (KeyNotFoundException) { return NotFound(); }
         catch (UnauthorizedAccessException) { return Forbid(); }
         catch (Exception ex) { return BadRequest(ex.Message); }

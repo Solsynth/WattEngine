@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using DysonNetwork.Shared.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NodaTime;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -14,9 +15,11 @@ using WattEngine.Ideask;
 namespace WattEngine.Ideask.Migrations
 {
     [DbContext(typeof(AppDatabase))]
-    partial class AppDatabaseModelSnapshot : ModelSnapshot
+    [Migration("20260726120531_SupportMultipleGitHubRepositoriesPerBoard")]
+    partial class SupportMultipleGitHubRepositoriesPerBoard
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -143,9 +146,9 @@ namespace WattEngine.Ideask.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("account_id");
 
-                    b.Property<Instant?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("completed_at");
+                    b.Property<Guid>("BroadId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("broad_id");
 
                     b.Property<Instant>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -173,10 +176,6 @@ namespace WattEngine.Ideask.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
 
-                    b.Property<Guid?>("WorkspaceId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("workspace_id");
-
                     b.HasKey("Id")
                         .HasName("pk_git_hub_installation_grants");
 
@@ -184,8 +183,8 @@ namespace WattEngine.Ideask.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_git_hub_installation_grants_state");
 
-                    b.HasIndex("WorkspaceId", "AccountId")
-                        .HasDatabaseName("ix_git_hub_installation_grants_workspace_id_account_id");
+                    b.HasIndex("BroadId", "AccountId")
+                        .HasDatabaseName("ix_git_hub_installation_grants_broad_id_account_id");
 
                     b.ToTable("git_hub_installation_grants", (string)null);
                 });
