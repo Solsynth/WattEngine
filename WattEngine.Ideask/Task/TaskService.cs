@@ -19,7 +19,8 @@ public class TaskService(
     ILogger<TaskService> logger,
     RealtimeDeliveryService webSocketService,
     RemoteWorkspaceService workspaces,
-    IntegrationOrchestrator integrations
+    IntegrationOrchestrator integrations,
+    TaskSequenceService taskSequence
 )
 #pragma warning restore CS9113
 {
@@ -96,8 +97,10 @@ public class TaskService(
             Content = content,
             Attachments = attachments ?? new List<SnCloudFileReferenceObject>(),
             Priority = priority,
+            SerialNumber = await taskSequence.AllocateAsync(broadId),
             DeadlineAt = deadlineAt,
             BroadId = broadId,
+            Broad = broad,
             ParentTaskId = parentTaskId,
             GroupId = groupId,
             Tags = NormalizeTags(tags)
@@ -146,6 +149,7 @@ public class TaskService(
 
         return await db.Tasks
             .Where(t => t.BroadId == broadId)
+            .Include(t => t.Broad)
             .Include(t => t.GitHubIssues)
             .ToListAsync();
     }

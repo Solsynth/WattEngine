@@ -2,6 +2,7 @@ using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using DysonNetwork.Shared.Registry;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
 using WattEngine.Ideask.Connectivity;
 using WattEngine.Ideask.Models.WebSocket;
 
@@ -15,6 +16,16 @@ public class BroadService(
     DyFileService.DyFileServiceClient files
 )
 {
+    private static readonly Regex TaskPrefixPattern = new("^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$", RegexOptions.Compiled);
+
+    private static string? NormalizeTaskPrefix(string? taskPrefix)
+    {
+        if (taskPrefix is null) return null;
+        var normalized = taskPrefix.Trim().ToUpperInvariant().TrimEnd('-');
+        if (string.IsNullOrEmpty(normalized) || !TaskPrefixPattern.IsMatch(normalized))
+            throw new ArgumentException("Task prefix must use 1-32 letters, numbers, underscores, or hyphens and cannot end with a hyphen.");
+        return normalized;
+    }
     private async Task<SnCloudFileReferenceObject> GetFileReference(string fileId, string fieldName)
     {
         var file = await files.GetFileAsync(new DyGetFileRequest { Id = fileId });
@@ -33,7 +44,7 @@ public class BroadService(
 
     public async Task<WtBroad> CreateBroadAsync(string name, Guid? workspaceId = null,
         string? description = null, string? content = null, string? backgroundImageId = null,
-        string? iconImageId = null, Visibility? visibility = null)
+        string? iconImageId = null, Visibility? visibility = null, string? taskPrefix = null)
     {
         var accountId = GetCurrentAccountId();
 
@@ -48,6 +59,7 @@ public class BroadService(
             Name = name,
             AccountId = accountId,
             WorkspaceId = workspaceId,
+            TaskPrefix = NormalizeTaskPrefix(taskPrefix),
             Description = description,
             Content = content,
             Visibility = visibility ?? Visibility.Private
@@ -99,7 +111,7 @@ public class BroadService(
 
     public async Task<WtBroad> UpdateBroadAsync(Guid broadId, string name,
         Guid? workspaceId, string? description = null, string? content = null, string? backgroundImageId = null,
-        string? iconImageId = null, Visibility? visibility = null)
+        string? iconImageId = null, Visibility? visibility = null, string? taskPrefix = null, bool clearTaskPrefix = false)
     {
         var accountId = GetCurrentAccountId();
         var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId);
@@ -121,6 +133,16 @@ public class BroadService(
         {
             broad.WorkspaceId = workspaceId;
             changedProperties.Add("workspace_id");
+        }
+
+        if (taskPrefix is not null || clearTaskPrefix)
+        {
+            var normalizedPrefix = clearTaskPrefix ? null : NormalizeTaskPrefix(taskPrefix);
+            if (broad.TaskPrefix != normalizedPrefix)
+            {
+                broad.TaskPrefix = normalizedPrefix;
+                changedProperties.Add("task_prefix");
+            }
         }
 
         if (broad.Description != description)

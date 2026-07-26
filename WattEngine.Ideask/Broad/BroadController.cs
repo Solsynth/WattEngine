@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace WattEngine.Ideask.Broad;
 
 [ApiController]
-[ApiFeature("ideask.broads", Revision = 1)]
+[ApiFeature("ideask.broads", Revision = 2)]
 [Route("/api/broads")]
 public class BroadController(BroadService broadService) : ControllerBase
 {
@@ -23,7 +23,8 @@ public class BroadController(BroadService broadService) : ControllerBase
         Visibility? Visibility,
         Guid? WorkspaceId,
         string? BackgroundImageId = null,
-        string? IconImageId = null
+        string? IconImageId = null,
+        [MaxLength(32)] string? TaskPrefix = null
     );
 
     public record UpdateBroadRequest(
@@ -37,7 +38,9 @@ public class BroadController(BroadService broadService) : ControllerBase
         Visibility? Visibility,
         Guid? WorkspaceId,
         string? BackgroundImageId = null,
-        string? IconImageId = null
+        string? IconImageId = null,
+        [MaxLength(32)] string? TaskPrefix = null,
+        bool? ClearTaskPrefix = null
     );
 
     [HttpGet]
@@ -79,7 +82,8 @@ public class BroadController(BroadService broadService) : ControllerBase
                 request.Content,
                 request.BackgroundImageId,
                 request.IconImageId,
-                request.Visibility
+                request.Visibility,
+                request.TaskPrefix
             );
             return CreatedAtAction(
                 nameof(GetBroad),
@@ -110,7 +114,9 @@ public class BroadController(BroadService broadService) : ControllerBase
                 request.Content,
                 request.BackgroundImageId,
                 request.IconImageId,
-                request.Visibility
+                request.Visibility,
+                request.TaskPrefix,
+                request.ClearTaskPrefix == true
             );
             return Ok(broad);
         }

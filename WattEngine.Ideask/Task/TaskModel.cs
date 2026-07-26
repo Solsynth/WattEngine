@@ -27,6 +27,10 @@ public class WtTask : ModelBase
     [Column(TypeName = "jsonb")] public List<string> Tags { get; set; } = [];
 
     public int Priority { get; set; }
+    public int SerialNumber { get; set; }
+    [NotMapped] public string TaskKey => string.IsNullOrWhiteSpace(Broad?.TaskPrefix)
+        ? SerialNumber.ToString()
+        : $"{Broad.TaskPrefix}-{SerialNumber}";
 
     public Instant? DeadlineAt { get; set; }
     public Instant? CompletedAt { get; set; }

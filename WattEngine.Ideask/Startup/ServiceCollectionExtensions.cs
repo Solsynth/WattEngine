@@ -62,6 +62,7 @@ public static class ServiceCollectionExtensions
             services.AddScoped<BroadService>();
             services.AddScoped<TaskService>();
             services.AddScoped<TaskCommentService>();
+            services.AddScoped<TaskSequenceService>();
             services.AddScoped<GitHubIntegrationService>();
             services.AddScoped<ITaskIntegrationProvider>(provider => provider.GetRequiredService<GitHubIntegrationService>());
             services.AddScoped<IntegrationProviderRegistry>();

@@ -14,6 +14,7 @@ public class GitHubIntegrationService(
     IHttpContextAccessor httpContextAccessor,
     GitHubApiClient github,
     IntegrationSyncQueue syncQueue,
+    TaskSequenceService taskSequence,
     IConfiguration configuration,
     ILogger<GitHubIntegrationService> logger) : ITaskIntegrationProvider
 {
@@ -225,7 +226,7 @@ public class GitHubIntegrationService(
         WtTask task;
         if (link is null)
         {
-            task = new WtTask { BroadId = integration.BroadId, Name = issue.Title, Content = issue.Body, Tags = issue.Labels, CompleteReason = issue.State == "closed" ? TaskCompleteReason.Completed : null, CompletedAt = issue.State == "closed" ? SystemClock.Instance.GetCurrentInstant() : null };
+            task = new WtTask { BroadId = integration.BroadId, Broad = integration.Broad, SerialNumber = await taskSequence.AllocateAsync(integration.BroadId, ct), Name = issue.Title, Content = issue.Body, Tags = issue.Labels, CompleteReason = issue.State == "closed" ? TaskCompleteReason.Completed : null, CompletedAt = issue.State == "closed" ? SystemClock.Instance.GetCurrentInstant() : null };
             db.Tasks.Add(task);
             link = new WtGitHubIssueLink { IntegrationId = integration.Id, Task = task, GitHubIssueId = issue.Id, IssueNumber = issue.Number, HtmlUrl = issue.HtmlUrl, LastGitHubUpdatedAt = issue.UpdatedAt };
             db.GitHubIssueLinks.Add(link);

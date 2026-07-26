@@ -25,6 +25,8 @@ public class WtBroad : ModelBase
     public string Name { get; set; } = null!;
     public Guid AccountId { get; set; }
     public Guid? WorkspaceId { get; set; }
+    [MaxLength(32)] public string? TaskPrefix { get; set; }
+    [JsonIgnore] public int NextTaskNumber { get; set; } = 1;
 
     public Visibility Visibility { get; set; } = Visibility.Private;
     [MaxLength(8192)]

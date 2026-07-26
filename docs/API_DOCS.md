@@ -500,6 +500,7 @@ Returns all broads accessible to the authenticated user.
 | name | `string` | Broad name (max 256 chars) |
 | accountId | `Guid` | Creator account ID |
 | workspaceId | `Guid?` | Associated workspace ID |
+| taskPrefix | `string?` | Optional 1-32 character task-reference prefix, such as `SN`. Task references are derived as `SN-1`, `SN-2`, and so on. |
 | visibility | `Visibility` | `Private` (0) or `Public` (1) |
 | description | `string?` | Description (max 8192 chars) |
 | content | `string?` | Optional long-form task detail (rich text) |
@@ -544,6 +545,7 @@ Creates a new broad (project board).
 | content | `string?` | No | Optional long-form task detail (rich text) |
 | visibility | `Visibility?` | No | `0` = Private, `1` = Public |
 | workspaceId | `Guid?` | No | Associate with workspace |
+| taskPrefix | `string?` | No | Optional task-reference prefix. It is normalized to uppercase; tasks store only their generated number. |
 | backgroundImageId | `string?` | No | Cloud file ID for the board background |
 | iconImageId | `string?` | No | Cloud file ID for the board icon |
 
@@ -577,6 +579,8 @@ Updates a broad.
 | content | `string?` | No | Optional long-form task detail (rich text) |
 | visibility | `Visibility?` | No | `0` = Private, `1` = Public |
 | workspaceId | `Guid?` | No | Associate with workspace |
+| taskPrefix | `string?` | No | Set the task-reference prefix. Existing task numbers remain unchanged. |
+| clearTaskPrefix | `bool?` | No | Set to `true` to remove the prefix and show only the generated task number. |
 | backgroundImageId | `string?` | No | Cloud file ID for the board background; omitted leaves the current value unchanged |
 | iconImageId | `string?` | No | Cloud file ID for the board icon; omitted leaves the current value unchanged |
 
@@ -607,6 +611,8 @@ Returns all tasks within a broad.
 | Field | Type | Description |
 |-------|------|-------------|
 | id | `Guid` | Unique identifier |
+| serialNumber | `int` | Immutable number generated automatically within the board |
+| taskKey | `string` | Derived display reference, using the board prefix when configured (for example `SN-1`) |
 | name | `string` | Task name (max 4096 chars) |
 | description | `string?` | Description (max 8192 chars) |
 | content | `string?` | Rich text content |
