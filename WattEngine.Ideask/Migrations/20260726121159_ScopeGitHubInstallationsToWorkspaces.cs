@@ -29,11 +29,11 @@ namespace WattEngine.Ideask.Migrations
                 nullable: true);
 
             migrationBuilder.Sql("""
-                UPDATE git_hub_installation_grants AS grant
+                UPDATE git_hub_installation_grants AS installation_grant
                 SET workspace_id = broad.workspace_id,
-                    completed_at = CASE WHEN grant.installation_id IS NOT NULL THEN grant.updated_at ELSE NULL END
+                    completed_at = CASE WHEN installation_grant.installation_id IS NOT NULL THEN installation_grant.updated_at ELSE NULL END
                 FROM broads AS broad
-                WHERE broad.id = grant.broad_id;
+                WHERE broad.id = installation_grant.broad_id;
                 """);
 
             migrationBuilder.DropColumn(
