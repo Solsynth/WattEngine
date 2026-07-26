@@ -15,6 +15,7 @@ on:
                     - all
                     - Ideask
                     - Valve
+                    - Flywheel
 
 jobs:
     determine-changes:
@@ -40,8 +41,8 @@ jobs:
             - name: Determine changed services
               id: changes
               run: |
-                  services=("Ideask" "Valve")
-                  images=("ideask" "valve")
+                  services=("Ideask" "Valve" "Flywheel")
+                  images=("ideask" "valve" "flywheel")
 
                   # On manual dispatch, build selected module(s)
                   if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then

@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WattEngine.Valve", "WattEng
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DysonNetwork.Shared", "DysonNetwork.Shared\DysonNetwork.Shared.csproj", "{23049CFF-BF43-4FB5-991D-3C27EB9E9BB3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WattEngine.Flywheel", "WattEngine.Flywheel\WattEngine.Flywheel.csproj", "{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,6 +54,18 @@ Global
 		{23049CFF-BF43-4FB5-991D-3C27EB9E9BB3}.Release|x64.Build.0 = Release|Any CPU
 		{23049CFF-BF43-4FB5-991D-3C27EB9E9BB3}.Release|x86.ActiveCfg = Release|Any CPU
 		{23049CFF-BF43-4FB5-991D-3C27EB9E9BB3}.Release|x86.Build.0 = Release|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Debug|x64.Build.0 = Debug|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Debug|x86.Build.0 = Debug|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Release|x64.ActiveCfg = Release|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Release|x64.Build.0 = Release|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Release|x86.ActiveCfg = Release|Any CPU
+		{C4A09BDA-B9A9-4B1E-9B50-BBE54401FE9A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
