@@ -7,6 +7,7 @@ using NodaTime.Serialization.SystemTextJson;
 using WattEngine.Ideask.Connectivity;
 using WattEngine.Ideask.Task;
 using WattEngine.Ideask.GitHub;
+using WattEngine.Ideask.Integrations;
 using WattEngine.Ideask.Broad;
 
 namespace WattEngine.Ideask.Startup;
@@ -62,9 +63,12 @@ public static class ServiceCollectionExtensions
             services.AddScoped<TaskService>();
             services.AddScoped<TaskCommentService>();
             services.AddScoped<GitHubIntegrationService>();
+            services.AddScoped<ITaskIntegrationProvider>(provider => provider.GetRequiredService<GitHubIntegrationService>());
+            services.AddScoped<IntegrationProviderRegistry>();
+            services.AddScoped<IntegrationOrchestrator>();
             services.AddScoped<GitHubApiClient>();
-            services.AddSingleton<GitHubSyncQueue>();
-            services.AddHostedService<GitHubSyncWorker>();
+            services.AddSingleton<IntegrationSyncQueue>();
+            services.AddHostedService<IntegrationSyncWorker>();
             services.AddScoped<RealtimeDeliveryService>();
             services.AddHostedService<TaskReminderService>();
 

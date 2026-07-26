@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 using WattEngine.Ideask.Broad;
+using WattEngine.Ideask.Integrations;
 using WattEngine.Ideask.Task;
 using Task = System.Threading.Tasks.Task;
 
@@ -12,10 +13,18 @@ public class GitHubIntegrationService(
     AppDatabase db,
     IHttpContextAccessor httpContextAccessor,
     GitHubApiClient github,
-    GitHubSyncQueue syncQueue,
+    IntegrationSyncQueue syncQueue,
     IConfiguration configuration,
-    ILogger<GitHubIntegrationService> logger)
+    ILogger<GitHubIntegrationService> logger) : ITaskIntegrationProvider
 {
+    public IntegrationProvider Provider => IntegrationProvider.GitHub;
+
+    System.Threading.Tasks.Task ITaskIntegrationProvider.ReconcileAsync(Guid integrationId, CancellationToken cancellationToken) =>
+        ReconcileIntegrationAsync(integrationId, cancellationToken);
+    System.Threading.Tasks.Task ITaskIntegrationProvider.SyncTaskAsync(Guid taskId, CancellationToken cancellationToken) =>
+        SyncLocalTaskAsync(taskId, cancellationToken);
+    System.Threading.Tasks.Task ITaskIntegrationProvider.SyncCommentAsync(Guid commentId, bool deleted, CancellationToken cancellationToken) =>
+        SyncLocalCommentAsync(commentId, deleted, cancellationToken);
     private Guid CurrentAccountId() => (httpContextAccessor.HttpContext?.Items["CurrentUser"] as DysonNetwork.Shared.Models.SnAccount)?.Id
         ?? throw new UnauthorizedAccessException("User not authenticated");
 
@@ -98,7 +107,7 @@ public class GitHubIntegrationService(
         db.GitHubIntegrations.Add(integration);
         await db.SaveChangesAsync(ct);
         var saved = await db.GitHubIntegrations.Include(i => i.Broad).SingleAsync(i => i.Id == integration.Id, ct);
-        await syncQueue.EnqueueAsync(saved.Id, ct);
+        await syncQueue.EnqueueAsync(new IntegrationJob(Provider, saved.Id), ct);
         return saved;
     }
 
@@ -114,7 +123,7 @@ public class GitHubIntegrationService(
         var accountId = CurrentAccountId();
         if (!await db.Broads.AnyAsync(b => b.Id == broadId && b.AccountId == accountId, ct)) throw new KeyNotFoundException("Broad not found");
         foreach (var id in await db.GitHubIntegrations.Where(i => i.BroadId == broadId).Select(i => i.Id).ToListAsync(ct))
-            await syncQueue.EnqueueAsync(id, ct);
+            await syncQueue.EnqueueAsync(new IntegrationJob(Provider, id), ct);
     }
 
     public async System.Threading.Tasks.Task<List<WtGitHubIntegration>> GetStatusAsync(Guid broadId)

@@ -8,6 +8,7 @@ using WattEngine.Ideask.Broad;
 using WattEngine.Ideask.Connectivity;
 using WattEngine.Ideask.Models.WebSocket;
 using WattEngine.Ideask.GitHub;
+using WattEngine.Ideask.Integrations;
 
 namespace WattEngine.Ideask.Task;
 
@@ -18,7 +19,7 @@ public class TaskService(
     ILogger<TaskService> logger,
     RealtimeDeliveryService webSocketService,
     RemoteWorkspaceService workspaces,
-    GitHubIntegrationService githubIntegration
+    IntegrationOrchestrator integrations
 )
 #pragma warning restore CS9113
 {
@@ -115,7 +116,7 @@ public class TaskService(
             await AssignTaskAsync(task.Id, assigneeAccountIds);
         }
 
-        await githubIntegration.SyncLocalTaskAsync(task.Id);
+        await integrations.SyncTaskAsync(task.Id);
 
         return task;
     }
@@ -278,7 +279,7 @@ public class TaskService(
         }
 
         if (changedProperties.Any(property => property is "name" or "content" or "tags" or "complete_reason"))
-            await githubIntegration.SyncLocalTaskAsync(task.Id);
+            await integrations.SyncTaskAsync(task.Id);
 
         return task;
     }

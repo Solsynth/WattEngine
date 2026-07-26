@@ -68,7 +68,7 @@ public class AppDatabase(
         modelBuilder.Entity<WtTask>()
             .HasMany(t => t.GitHubIssues).WithOne(l => l.Task).HasForeignKey(l => l.TaskId);
         modelBuilder.Entity<WtBroad>()
-            .HasOne<WtGitHubIntegration>().WithOne(i => i.Broad).HasForeignKey<WtGitHubIntegration>(i => i.BroadId);
+            .HasMany<WtGitHubIntegration>().WithOne(i => i.Broad).HasForeignKey(i => i.BroadId);
         modelBuilder.Entity<WtGitHubIntegration>()
             .HasMany<WtGitHubIssueLink>().WithOne(l => l.Integration).HasForeignKey(l => l.IntegrationId);
         modelBuilder.Entity<WtTaskComment>()
