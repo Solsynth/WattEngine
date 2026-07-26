@@ -1,4 +1,5 @@
 using DysonNetwork.Shared.Registry;
+using DysonNetwork.Shared.Proto;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
 
@@ -21,6 +22,8 @@ public class FlywheelService(
     {
         if (!await workspaces.IsMemberWithRole(workspaceId, accountId, [requiredRole], ct))
             throw new FlywheelForbiddenException();
+        if (await workspaces.GetPlan(workspaceId, ct) is not (DyWorkspacePlan.Pro or DyWorkspacePlan.Enterprise))
+            throw new FlywheelSubscriptionRequiredException();
 
         var stream = await db.Streams.SingleOrDefaultAsync(
             x => x.WorkspaceId == workspaceId && x.AppId == appId, ct);
@@ -78,7 +81,7 @@ public class FlywheelService(
     }
 
     public async Task<List<FlywheelOperation>> UploadAsync(
-        FlywheelStream stream, Guid accountId, string deviceId, IReadOnlyList<(Guid OperationId, byte[] Ciphertext)> operations,
+        FlywheelStream stream, Guid accountId, string deviceId, IReadOnlyList<(Guid OperationId, int SchemeVersion, byte[] Ciphertext)> operations,
         CancellationToken ct)
     {
         if (stream.RequiresMlsRotation)
@@ -114,6 +117,7 @@ public class FlywheelService(
                 StreamId = stream.Id,
                 DeviceRegistrationId = device.Id,
                 OperationId = input.OperationId,
+                SchemeVersion = input.SchemeVersion,
                 Cursor = stream.CurrentCursor,
                 Ciphertext = input.Ciphertext,
                 CreatedAt = now,
@@ -172,3 +176,7 @@ public class FlywheelForbiddenException : Exception;
 public class FlywheelNotFoundException(string message) : Exception(message);
 public class FlywheelConflictException(string message) : Exception(message);
 public class FlywheelValidationException(string message) : Exception(message);
+public class FlywheelSubscriptionRequiredException : Exception
+{
+    public FlywheelSubscriptionRequiredException() : base("Flywheel requires a Pro or Enterprise workspace subscription.") { }
+}

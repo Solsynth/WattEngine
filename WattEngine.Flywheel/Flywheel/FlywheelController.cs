@@ -24,6 +24,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
     public class UploadOperationRequest
     {
         [Required] public Guid OperationId { get; set; }
+        [Range(1, int.MaxValue)] public int SchemeVersion { get; set; }
         [Required] public byte[] Ciphertext { get; set; } = [];
     }
 
@@ -95,7 +96,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
         if (request.Operations.Any(x => x.Ciphertext.Length == 0 || x.Ciphertext.Length > maxBytes))
             return BadRequest($"Each ciphertext must be between 1 and {maxBytes} bytes.");
         var accepted = await flywheel.UploadAsync(stream, CurrentUserId(), request.DeviceId,
-            request.Operations.Select(x => (x.OperationId, x.Ciphertext)).ToList(), ct);
+            request.Operations.Select(x => (x.OperationId, x.SchemeVersion, x.Ciphertext)).ToList(), ct);
         var devices = await db.Devices.Where(x => x.StreamId == stream.Id).ToDictionaryAsync(x => x.Id, x => x.DeviceId, ct);
         return accepted.Select(x => ToResponse(x, devices[x.DeviceRegistrationId])).ToList();
     }
@@ -168,7 +169,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
         ?? throw new FlywheelForbiddenException();
     private static FlywheelStreamResponse ToResponse(FlywheelStream x) => new(x.WorkspaceId, x.AppId, x.MlsGroupId, x.CurrentCursor, x.MlsEpoch, x.RequiresMlsRotation);
     private static FlywheelDeviceResponse ToResponse(FlywheelDevice x) => new(x.Id, x.DeviceId, x.Label, x.IsRevoked, x.LastAcknowledgedCursor, x.LastSeenAt);
-    private static FlywheelOperationResponse ToResponse(FlywheelOperation x, string deviceId) => new(x.OperationId, deviceId, x.Cursor, x.Ciphertext, x.CreatedAt);
+    private static FlywheelOperationResponse ToResponse(FlywheelOperation x, string deviceId) => new(x.OperationId, deviceId, x.SchemeVersion, x.Cursor, x.Ciphertext, x.CreatedAt);
 
     [GeneratedRegex("^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$", RegexOptions.CultureInvariant)]
     private static partial Regex AppIdRegex();

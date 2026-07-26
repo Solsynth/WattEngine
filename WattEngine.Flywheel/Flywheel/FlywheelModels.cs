@@ -37,6 +37,7 @@ public class FlywheelOperation
     public Guid StreamId { get; set; }
     public Guid DeviceRegistrationId { get; set; }
     public Guid OperationId { get; set; }
+    public int SchemeVersion { get; set; }
     public long Cursor { get; set; }
     public byte[] Ciphertext { get; set; } = [];
     public Instant CreatedAt { get; set; }
@@ -53,4 +54,4 @@ public class FlywheelStreamMember
 
 public record FlywheelStreamResponse(Guid WorkspaceId, string AppId, string MlsGroupId, long Cursor, long MlsEpoch, bool RequiresMlsRotation);
 public record FlywheelDeviceResponse(Guid Id, string DeviceId, string? Label, bool IsRevoked, long LastAcknowledgedCursor, Instant? LastSeenAt);
-public record FlywheelOperationResponse(Guid OperationId, string DeviceId, long Cursor, byte[] Ciphertext, Instant CreatedAt);
+public record FlywheelOperationResponse(Guid OperationId, string DeviceId, int SchemeVersion, long Cursor, byte[] Ciphertext, Instant CreatedAt);

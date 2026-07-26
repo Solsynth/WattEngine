@@ -7,8 +7,12 @@ WattEngine is a .NET/C# microservices platform for the Solar Network ecosystem, 
 **Services:**
 - **WattEngine.Valve** - Workspace, permission, and billing management
 - **WattEngine.Ideask** - Project boards (Broad) and task management
+- **WattEngine.Flywheel** - End-to-end encrypted, package-scoped device sync
 
 **Authentication:** All endpoints require JWT Bearer token via `Authorization` header (Solar Network Unified Authentication).
+
+For the Flywheel sync contract and the required workspace setup flow, see
+[Flywheel API](FLYWHEEL_API.md).
 
 ---
 

@@ -49,6 +49,7 @@ public partial class Initial : Migration
                 stream_id = table.Column<Guid>(type: "uuid", nullable: false),
                 device_registration_id = table.Column<Guid>(type: "uuid", nullable: false),
                 operation_id = table.Column<Guid>(type: "uuid", nullable: false),
+                scheme_version = table.Column<int>(type: "integer", nullable: false),
                 cursor = table.Column<long>(type: "bigint", nullable: false),
                 ciphertext = table.Column<byte[]>(type: "bytea", nullable: false),
                 created_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
