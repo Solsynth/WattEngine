@@ -14,7 +14,6 @@ builder.Services.AddAppAuthentication();
 builder.Services.AddDysonAuth();
 builder.Services.AddDyAuthModelProjection();
 builder.Services.AddWorkspaceService();
-builder.Services.AddMlsService();
 builder.Services.AddAppBusinessServices();
 
 builder.AddSwaggerManifest(

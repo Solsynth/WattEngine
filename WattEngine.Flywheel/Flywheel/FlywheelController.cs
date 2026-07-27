@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 using System.Text.RegularExpressions;
 using DysonNetwork.Shared.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -8,169 +7,99 @@ using Microsoft.EntityFrameworkCore;
 
 namespace WattEngine.Flywheel.Flywheel;
 
-[ApiController]
-[Authorize]
+[ApiController, Authorize]
 [Route("/api/workspaces/{workspaceId:guid}/apps/{appId}")]
-public partial class FlywheelController(AppDatabase db, FlywheelService flywheel, IConfiguration configuration) : ControllerBase
+public partial class FlywheelController(AppDatabase db, FlywheelService flywheel, FlywheelBlobStorage storage) : ControllerBase
 {
-    private const int DefaultPullLimit = 100;
+    public class UpdateSettingsRequest { [Range(0, 20)] public int RetainedRevisionCount { get; set; } }
+    public class UploadBlobRequest { [Required] public IFormFile File { get; set; } = null!; [Range(1, int.MaxValue)] public int SchemeVersion { get; set; } [Range(0, long.MaxValue)] public long ExpectedRevision { get; set; } }
 
-    public class RegisterDeviceRequest
-    {
-        [Required, MaxLength(512)] public string DeviceId { get; set; } = string.Empty;
-        [MaxLength(1024)] public string? Label { get; set; }
-    }
+    [HttpGet("settings")]
+    public async Task<ActionResult<FlywheelSettingsResponse>> GetSettings(Guid workspaceId, string appId, CancellationToken ct) => ToSettings(await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct), await flywheel.GetRetentionCapAsync(workspaceId, ct));
 
-    public class UploadOperationRequest
+    [HttpPatch("settings")]
+    public async Task<ActionResult<FlywheelSettingsResponse>> UpdateSettings(Guid workspaceId, string appId, UpdateSettingsRequest request, CancellationToken ct)
     {
-        [Required] public Guid OperationId { get; set; }
-        [Range(1, int.MaxValue)] public int SchemeVersion { get; set; }
-        [Required] public byte[] Ciphertext { get; set; } = [];
-    }
-
-    public class UploadRequest
-    {
-        [Required, MaxLength(512)] public string DeviceId { get; set; } = string.Empty;
-        [Required, MinLength(1)] public List<UploadOperationRequest> Operations { get; set; } = [];
-    }
-
-    public class AcknowledgeRequest
-    {
-        [Required, MaxLength(512)] public string DeviceId { get; set; } = string.Empty;
-        [Range(0, long.MaxValue)] public long Cursor { get; set; }
-    }
-
-    public class CompleteRotationRequest
-    {
-        [Range(1, long.MaxValue)] public long MlsEpoch { get; set; }
-    }
-
-    [HttpPost("bootstrap")]
-    public async Task<ActionResult<FlywheelStreamResponse>> Bootstrap(Guid workspaceId, string appId, CancellationToken ct)
-    {
-        var stream = await StreamAsync(workspaceId, appId, FlywheelService.ViewerRole, ct);
-        return ToResponse(stream);
-    }
-
-    [HttpGet("status")]
-    public async Task<ActionResult<FlywheelStreamResponse>> Status(Guid workspaceId, string appId, CancellationToken ct)
-    {
-        var stream = await StreamAsync(workspaceId, appId, FlywheelService.ViewerRole, ct);
-        return ToResponse(stream);
-    }
-
-    [HttpPost("devices")]
-    public async Task<ActionResult<FlywheelDeviceResponse>> RegisterDevice(Guid workspaceId, string appId, RegisterDeviceRequest request, CancellationToken ct)
-    {
-        var stream = await StreamAsync(workspaceId, appId, FlywheelService.MemberRole, ct);
-        var device = await flywheel.RegisterDeviceAsync(stream, CurrentUserId(), request.DeviceId, request.Label, ct);
-        return Ok(ToResponse(device));
-    }
-
-    [HttpGet("devices")]
-    public async Task<ActionResult<List<FlywheelDeviceResponse>>> ListDevices(Guid workspaceId, string appId, CancellationToken ct)
-    {
-        var stream = await StreamAsync(workspaceId, appId, FlywheelService.ViewerRole, ct);
-        var devices = await db.Devices.Where(x => x.StreamId == stream.Id && x.AccountId == CurrentUserId())
-            .OrderBy(x => x.CreatedAt).ToListAsync(ct);
-        return devices.Select(ToResponse).ToList();
-    }
-
-    [HttpDelete("devices/{deviceId}")]
-    public async Task<IActionResult> RevokeDevice(Guid workspaceId, string appId, string deviceId, CancellationToken ct)
-    {
-        var stream = await StreamAsync(workspaceId, appId, FlywheelService.MemberRole, ct);
-        var device = await db.Devices.SingleOrDefaultAsync(x => x.StreamId == stream.Id && x.DeviceId == deviceId, ct);
-        if (device is null) return NotFound();
-        if (device.AccountId != CurrentUserId()) return Forbid();
-        device.IsRevoked = true;
+        var settings = await Settings(workspaceId, appId, FlywheelService.AdminRole, ct);
+        var cap = await flywheel.GetRetentionCapAsync(workspaceId, ct);
+        if (request.RetainedRevisionCount > cap) return BadRequest($"This workspace plan permits at most {cap} retained prior revisions.");
+        settings.RetainedRevisionCount = request.RetainedRevisionCount;
         await db.SaveChangesAsync(ct);
-        return NoContent();
+        return ToSettings(settings, cap);
     }
 
-    [HttpPost("operations")]
-    public async Task<ActionResult<List<FlywheelOperationResponse>>> Upload(Guid workspaceId, string appId, UploadRequest request, CancellationToken ct)
+    [HttpGet("blobs")]
+    public async Task<ActionResult<List<FlywheelBlobResponse>>> ListBlobs(Guid workspaceId, string appId, CancellationToken ct)
     {
-        var stream = await StreamAsync(workspaceId, appId, FlywheelService.MemberRole, ct);
-        var maxBytes = configuration.GetValue<int?>("Flywheel:MaxOperationBytes") ?? 1_048_576;
-        if (request.Operations.Any(x => x.Ciphertext.Length == 0 || x.Ciphertext.Length > maxBytes))
-            return BadRequest($"Each ciphertext must be between 1 and {maxBytes} bytes.");
-        var accepted = await flywheel.UploadAsync(stream, CurrentUserId(), request.DeviceId,
-            request.Operations.Select(x => (x.OperationId, x.SchemeVersion, x.Ciphertext)).ToList(), ct);
-        var devices = await db.Devices.Where(x => x.StreamId == stream.Id).ToDictionaryAsync(x => x.Id, x => x.DeviceId, ct);
-        return accepted.Select(x => ToResponse(x, devices[x.DeviceRegistrationId])).ToList();
+        await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct);
+        return await db.Blobs.Where(x => x.WorkspaceId == workspaceId && x.AppId == appId).OrderByDescending(x => x.UpdatedAt).Select(x => ToBlob(x)).ToListAsync(ct);
     }
 
-    [HttpGet("operations")]
-    public async Task<ActionResult<List<FlywheelOperationResponse>>> Pull(Guid workspaceId, string appId, [FromQuery] long after = 0, [FromQuery] int limit = DefaultPullLimit, CancellationToken ct = default)
+    [HttpGet("blobs/{blobId:guid}")]
+    public async Task<ActionResult<FlywheelBlobResponse>> GetBlob(Guid workspaceId, string appId, Guid blobId, CancellationToken ct)
     {
-        if (after < 0) return BadRequest("after must not be negative.");
-        var stream = await StreamAsync(workspaceId, appId, FlywheelService.ViewerRole, ct);
-        limit = Math.Clamp(limit, 1, configuration.GetValue<int?>("Flywheel:MaxPullLimit") ?? 500);
-        var operations = await db.Operations.Where(x => x.StreamId == stream.Id && x.Cursor > after)
-            .OrderBy(x => x.Cursor).Take(limit).ToListAsync(ct);
-        var deviceIds = await db.Devices.Where(x => x.StreamId == stream.Id).ToDictionaryAsync(x => x.Id, x => x.DeviceId, ct);
-        return operations.Select(x => ToResponse(x, deviceIds[x.DeviceRegistrationId])).ToList();
+        await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct);
+        var blob = await FindBlob(workspaceId, appId, blobId, ct); return ToBlob(blob);
     }
 
-    [HttpPost("acknowledgements")]
-    public async Task<IActionResult> Acknowledge(Guid workspaceId, string appId, AcknowledgeRequest request, CancellationToken ct)
+    [HttpPut("blobs/{blobId:guid}")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<FlywheelRevisionResponse>> Upload(Guid workspaceId, string appId, Guid blobId, [FromForm] UploadBlobRequest request, CancellationToken ct)
     {
-        var stream = await StreamAsync(workspaceId, appId, FlywheelService.ViewerRole, ct);
-        if (request.Cursor > stream.CurrentCursor) return BadRequest("cursor exceeds the stream cursor.");
-        var device = await db.Devices.SingleOrDefaultAsync(x => x.StreamId == stream.Id && x.DeviceId == request.DeviceId, ct);
-        if (device is null) return NotFound();
-        if (device.AccountId != CurrentUserId() || device.IsRevoked) return Forbid();
-        device.LastAcknowledgedCursor = Math.Max(device.LastAcknowledgedCursor, request.Cursor);
-        await db.SaveChangesAsync(ct);
-        return NoContent();
+        var settings = await Settings(workspaceId, appId, FlywheelService.MemberRole, ct);
+        var newRevision = request.ExpectedRevision + 1;
+        var key = storage.BuildObjectKey(workspaceId, appId, blobId, newRevision);
+        var saved = await storage.SaveAsync(key, request.File, ct);
+        try
+        {
+            var revision = await flywheel.CommitRevisionAsync(settings, blobId, request.ExpectedRevision, request.SchemeVersion, saved.Size, saved.Sha256, key, CurrentUserId(), ct);
+            var blob = await FindBlob(workspaceId, appId, blobId, ct);
+            foreach (var stale in await flywheel.TrimRevisionsAsync(blob, settings.RetainedRevisionCount, ct)) await storage.DeleteAsync(stale.StorageKey, ct);
+            return CreatedAtAction(nameof(GetBlob), new { workspaceId, appId, blobId }, ToRevision(blobId, revision));
+        }
+        catch { await storage.DeleteAsync(key, ct); throw; }
     }
 
-    [HttpPost("mls/rotation-complete")]
-    public async Task<IActionResult> CompleteRotation(Guid workspaceId, string appId, CompleteRotationRequest request, CancellationToken ct)
+    [HttpGet("blobs/{blobId:guid}/revisions/{revision:long}")]
+    public async Task<ActionResult<FlywheelRevisionResponse>> GetRevision(Guid workspaceId, string appId, Guid blobId, long revision, CancellationToken ct)
     {
-        var stream = await StreamAsync(workspaceId, appId, FlywheelService.MemberRole, ct);
-        await flywheel.CompleteRotationAsync(stream, request.MlsEpoch, ct);
-        return NoContent();
+        await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct);
+        var blob = await FindBlob(workspaceId, appId, blobId, ct);
+        var item = await db.BlobRevisions.SingleOrDefaultAsync(x => x.BlobId == blob.Id && x.Revision == revision, ct) ?? throw new FlywheelNotFoundException("Revision not found.");
+        return ToRevision(blobId, item);
+    }
+
+    [HttpGet("blobs/{blobId:guid}/content")]
+    public async Task<IActionResult> Download(Guid workspaceId, string appId, Guid blobId, [FromQuery] long? revision, CancellationToken ct)
+    {
+        await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct);
+        var blob = await FindBlob(workspaceId, appId, blobId, ct);
+        var number = revision ?? blob.CurrentRevision;
+        var item = await db.BlobRevisions.SingleOrDefaultAsync(x => x.BlobId == blob.Id && x.Revision == number, ct) ?? throw new FlywheelNotFoundException("Revision not found.");
+        var stream = await storage.OpenAsync(item.StorageKey, ct) ?? throw new FlywheelNotFoundException("Blob content is unavailable.");
+        return File(stream, "application/octet-stream", enableRangeProcessing: true);
     }
 
     [HttpGet("events")]
     public async Task Events(Guid workspaceId, string appId, [FromQuery] long after = 0, CancellationToken ct = default)
     {
-        if (after < 0) { Response.StatusCode = StatusCodes.Status400BadRequest; return; }
-        Response.Headers.ContentType = "text/event-stream";
-        Response.Headers.CacheControl = "no-cache";
-        Response.Headers.Connection = "keep-alive";
+        Response.Headers.ContentType = "text/event-stream"; Response.Headers.CacheControl = "no-cache";
         var cursor = after;
         while (!ct.IsCancellationRequested)
         {
-            var stream = await StreamAsync(workspaceId, appId, FlywheelService.ViewerRole, ct);
-            if (stream.CurrentCursor > cursor)
-            {
-                cursor = stream.CurrentCursor;
-                await Response.WriteAsync($"id: {cursor}\nevent: changes-available\ndata: {{\"cursor\":\"{cursor}\"}}\n\n", ct);
-            }
-            else
-            {
-                await Response.WriteAsync(": keep-alive\n\n", ct);
-            }
-            await Response.Body.FlushAsync(ct);
-            await Task.Delay(TimeSpan.FromSeconds(15), ct);
+            var settings = await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct);
+            var changed = await db.Blobs.Where(x => x.WorkspaceId == workspaceId && x.AppId == appId && x.LastEventCursor > cursor).OrderBy(x => x.LastEventCursor).Select(x => new { x.BlobId, x.CurrentRevision, x.LastEventCursor }).ToListAsync(ct);
+            foreach (var item in changed) { cursor = item.LastEventCursor; await Response.WriteAsync($"id: {cursor}\nevent: blob-updated\ndata: {{\"blob_id\":\"{item.BlobId}\",\"revision\":{item.CurrentRevision}}}\n\n", ct); }
+            if (changed.Count == 0) await Response.WriteAsync(": keep-alive\n\n", ct);
+            await Response.Body.FlushAsync(ct); await Task.Delay(TimeSpan.FromSeconds(15), ct);
         }
     }
 
-    private async Task<FlywheelStream> StreamAsync(Guid workspaceId, string appId, int role, CancellationToken ct)
-    {
-        if (!AppIdRegex().IsMatch(appId)) throw new FlywheelValidationException("app_id must be a reverse-DNS package identifier.");
-        return await flywheel.GetStreamAsync(workspaceId, appId, CurrentUserId(), role, ct);
-    }
-
-    private Guid CurrentUserId() => (HttpContext.Items["CurrentUser"] as SnAccount)?.Id
-        ?? throw new FlywheelForbiddenException();
-    private static FlywheelStreamResponse ToResponse(FlywheelStream x) => new(x.WorkspaceId, x.AppId, x.MlsGroupId, x.CurrentCursor, x.MlsEpoch, x.RequiresMlsRotation);
-    private static FlywheelDeviceResponse ToResponse(FlywheelDevice x) => new(x.Id, x.DeviceId, x.Label, x.IsRevoked, x.LastAcknowledgedCursor, x.LastSeenAt);
-    private static FlywheelOperationResponse ToResponse(FlywheelOperation x, string deviceId) => new(x.OperationId, deviceId, x.SchemeVersion, x.Cursor, x.Ciphertext, x.CreatedAt);
-
-    [GeneratedRegex("^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$", RegexOptions.CultureInvariant)]
-    private static partial Regex AppIdRegex();
+    private async Task<FlywheelAppSettings> Settings(Guid workspaceId, string appId, int role, CancellationToken ct) { if (!AppIdRegex().IsMatch(appId)) throw new FlywheelValidationException("app_id must be a reverse-DNS package identifier."); return await flywheel.GetSettingsAsync(workspaceId, appId, CurrentUserId(), role, ct); }
+    private async Task<FlywheelBlob> FindBlob(Guid workspaceId, string appId, Guid blobId, CancellationToken ct) => await db.Blobs.SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.AppId == appId && x.BlobId == blobId, ct) ?? throw new FlywheelNotFoundException("Blob not found.");
+    private Guid CurrentUserId() => (HttpContext.Items["CurrentUser"] as SnAccount)?.Id ?? throw new FlywheelForbiddenException();
+    private static FlywheelSettingsResponse ToSettings(FlywheelAppSettings x, int cap) => new(x.RetainedRevisionCount, cap, x.EventCursor);
+    private static FlywheelBlobResponse ToBlob(FlywheelBlob x) => new(x.BlobId, x.CurrentRevision, x.LastEventCursor, x.UpdatedAt);
+    private static FlywheelRevisionResponse ToRevision(Guid blobId, FlywheelBlobRevision x) => new(blobId, x.Revision, x.SchemeVersion, x.Size, x.Sha256, x.CreatedAt);
+    [GeneratedRegex("^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$", RegexOptions.CultureInvariant)] private static partial Regex AppIdRegex();
 }

@@ -1,57 +1,44 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.EntityFrameworkCore;
 using NodaTime;
 
 namespace WattEngine.Flywheel.Flywheel;
 
-public class FlywheelStream
+public class FlywheelAppSettings
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid WorkspaceId { get; set; }
     [MaxLength(1024)] public string AppId { get; set; } = string.Empty;
-    [MaxLength(1400)] public string MlsGroupId { get; set; } = string.Empty;
-    public long CurrentCursor { get; set; }
-    public long MlsEpoch { get; set; }
-    public bool RequiresMlsRotation { get; set; }
+    public int RetainedRevisionCount { get; set; }
+    public long EventCursor { get; set; }
     public Instant CreatedAt { get; set; }
     public Instant UpdatedAt { get; set; }
 }
 
-public class FlywheelDevice
+public class FlywheelBlob
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid StreamId { get; set; }
-    public Guid AccountId { get; set; }
-    [MaxLength(512)] public string DeviceId { get; set; } = string.Empty;
-    [MaxLength(1024)] public string? Label { get; set; }
-    public bool IsRevoked { get; set; }
-    public long LastAcknowledgedCursor { get; set; }
-    public Instant? LastSeenAt { get; set; }
+    public Guid WorkspaceId { get; set; }
+    [MaxLength(1024)] public string AppId { get; set; } = string.Empty;
+    public Guid BlobId { get; set; }
+    public long CurrentRevision { get; set; }
+    public long LastEventCursor { get; set; }
     public Instant CreatedAt { get; set; }
     public Instant UpdatedAt { get; set; }
 }
 
-public class FlywheelOperation
+public class FlywheelBlobRevision
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid StreamId { get; set; }
-    public Guid DeviceRegistrationId { get; set; }
-    public Guid OperationId { get; set; }
+    public Guid BlobId { get; set; }
+    public long Revision { get; set; }
     public int SchemeVersion { get; set; }
-    public long Cursor { get; set; }
-    public byte[] Ciphertext { get; set; } = [];
+    [MaxLength(2048)] public string StorageKey { get; set; } = string.Empty;
+    public long Size { get; set; }
+    [MaxLength(128)] public string Sha256 { get; set; } = string.Empty;
+    public Guid UploadedByAccountId { get; set; }
     public Instant CreatedAt { get; set; }
-    public Instant RetainUntil { get; set; }
 }
 
-public class FlywheelStreamMember
-{
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid StreamId { get; set; }
-    public Guid AccountId { get; set; }
-    public Instant ObservedAt { get; set; }
-}
-
-public record FlywheelStreamResponse(Guid WorkspaceId, string AppId, string MlsGroupId, long Cursor, long MlsEpoch, bool RequiresMlsRotation);
-public record FlywheelDeviceResponse(Guid Id, string DeviceId, string? Label, bool IsRevoked, long LastAcknowledgedCursor, Instant? LastSeenAt);
-public record FlywheelOperationResponse(Guid OperationId, string DeviceId, int SchemeVersion, long Cursor, byte[] Ciphertext, Instant CreatedAt);
+public record FlywheelSettingsResponse(int RetainedRevisionCount, int MaxRetainedRevisionCount, long EventCursor);
+public record FlywheelBlobResponse(Guid BlobId, long CurrentRevision, long LastEventCursor, Instant UpdatedAt);
+public record FlywheelRevisionResponse(Guid BlobId, long Revision, int SchemeVersion, long Size, string Sha256, Instant CreatedAt);

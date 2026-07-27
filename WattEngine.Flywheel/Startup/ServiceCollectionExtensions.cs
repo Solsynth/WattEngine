@@ -39,7 +39,7 @@ public static class ServiceCollectionExtensions
         public IServiceCollection AddAppBusinessServices()
         {
             services.AddScoped<FlywheelService>();
-            services.AddHostedService<MembershipReconciliationService>();
+            services.AddScoped<FlywheelBlobStorage>();
             return services;
         }
     }
