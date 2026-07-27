@@ -47,6 +47,7 @@ public class WtGitHubIssueLink : ModelBase
     [JsonIgnore] public WtTask Task { get; set; } = null!;
     public long GitHubIssueId { get; set; }
     public int IssueNumber { get; set; }
+    public bool IsPullRequest { get; set; }
     [MaxLength(2048)] public string HtmlUrl { get; set; } = null!;
     public Instant? LastGitHubUpdatedAt { get; set; }
 }

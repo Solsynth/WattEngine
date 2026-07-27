@@ -1,6 +1,6 @@
 # GitHub App task synchronization
 
-Ideask links multiple GitHub repositories to one board (`WtBroad`). Linked issues become tasks, and supported task changes synchronize back to every repository linked to that board. This is a GitHub App integration: users install the app and select repositories, but never create webhooks or provide GitHub tokens to Ideask.
+Ideask links multiple GitHub repositories to one board (`WtBroad`). Linked issues and pull requests become tasks, and supported task changes synchronize back to every repository linked to that board. This is a GitHub App integration: users install the app and select repositories, but never create webhooks or provide GitHub tokens to Ideask.
 
 For workspace boards, a completed GitHub App installation is stored at the workspace level. Any board in that workspace reuses it and proceeds directly to repository selection; the user is not asked to install the app again. Personal boards retain an account-scoped installation.
 
@@ -14,7 +14,7 @@ Create a GitHub App owned by the WattEngine organization.
 | Webhook URL | `https://<ideask-host>/api/github/webhook` |
 | Webhook secret | A random value also supplied as `GitHub:WebhookSecret` |
 
-Subscribe to **Issues**, **Issue comments**, **Installation**, and **Installation repositories**. Grant repository permissions only for Metadata (read-only) and Issues (read/write).
+Subscribe to **Issues**, **Issue comments**, **Pull requests**, **Installation**, and **Installation repositories**. Grant repository permissions for Metadata (read-only), Issues (read/write), and Pull requests (read/write).
 
 Supply these deployment secrets and settings; do not commit them:
 
@@ -59,7 +59,7 @@ All requests below require the normal Ideask bearer token. The current board own
    GET /api/github/broads/{broadId}/installations/{installationId}/repositories
    ```
 
-5. Link the repository. Existing issues import immediately.
+5. Link the repository. Existing issues and pull requests import immediately.
 
    ```http
    POST /api/github/broads/{broadId}
@@ -81,19 +81,19 @@ Show a clear error if an organization needs owner approval or the selected repos
 1. In board settings, choose **Connect GitHub**.
 2. Install the WattEngine GitHub App in GitHub and select the organization/account and repositories it may access. Organization policy may require owner approval.
 3. Return to WattEngine and choose each authorized repository to link to the board.
-4. Existing GitHub issues import as tasks. New tasks create corresponding GitHub issues in every linked repository. Changes to title, content, tags, and open/closed state synchronize in both directions.
-5. Task comments synchronize with issue comments. GitHub-authored comments are read-only in WattEngine; users can edit or delete only their own local comments.
+4. Existing GitHub issues and pull requests import as tasks. New local tasks create corresponding GitHub issues in every linked repository. Changes to title, content, tags, and open/closed state synchronize in both directions for linked issues and pull requests.
+5. Task comments synchronize with issue or pull-request conversation comments. GitHub-authored comments are read-only in WattEngine; users can edit or delete only their own local comments.
 
 Unlinking stops sync but does not delete GitHub issues, comments, or the GitHub App installation. Removing the app or removing repository access automatically unlinks affected boards.
 
 ## Supported fields
 
-| GitHub issue field | Ideask task field |
+| GitHub issue or pull-request field | Ideask task field |
 |---|---|
 | Title | Name |
 | Body | Content |
 | Labels | Tags |
 | Open / closed | Incomplete / completed |
-| Issue comments | Task comments |
+| Issue / pull-request conversation comments | Task comments |
 
-Pull requests are ignored. Groups, priority, due dates, assignments, attachments, sub-tasks, task deletion, and detailed completion reasons stay Ideask-only. Ideask also reconciles linked repositories every 15 minutes.
+Pull-request review comments and review state are not mirrored in v1. Groups, priority, due dates, assignments, attachments, sub-tasks, task deletion, and detailed completion reasons stay Ideask-only. Ideask also reconciles linked repositories every 15 minutes.

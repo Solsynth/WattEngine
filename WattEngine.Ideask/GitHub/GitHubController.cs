@@ -86,7 +86,7 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
         if (!await integrations.VerifySignatureAsync(signature, payload)) return Unauthorized();
         var eventName = Request.Headers["X-GitHub-Event"].ToString();
         var action = document.RootElement.TryGetProperty("action", out var actionValue) ? actionValue.GetString() ?? string.Empty : string.Empty;
-        if (!document.RootElement.TryGetProperty("repository", out var repository) && eventName is "issues" or "issue_comment" or "repository") return BadRequest();
+        if (!document.RootElement.TryGetProperty("repository", out var repository) && eventName is "issues" or "issue_comment" or "pull_request" or "repository") return BadRequest();
         var repositoryId = repository.ValueKind == JsonValueKind.Undefined ? 0 : repository.GetProperty("id").GetInt64();
         if (eventName == "repository" && action is "deleted" or "archived") { await integrations.RemoveForRepositoryAsync(repositoryId, HttpContext.RequestAborted); return NoContent(); }
         if (eventName == "installation" && action == "deleted" && document.RootElement.TryGetProperty("installation", out var installation))
@@ -100,9 +100,13 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
                 await integrations.RemoveForRepositoryAsync(removedRepository.GetProperty("id").GetInt64(), HttpContext.RequestAborted);
             return NoContent();
         }
-        var issue = document.RootElement.TryGetProperty("issue", out var issueValue) ? ParseIssue(issueValue) : null;
+        var issue = document.RootElement.TryGetProperty("issue", out var issueValue)
+            ? ParseIssue(issueValue)
+            : eventName == "pull_request" && document.RootElement.TryGetProperty("pull_request", out var pullRequest)
+                ? ParsePullRequest(pullRequest, document.RootElement)
+                : null;
         var comment = document.RootElement.TryGetProperty("comment", out var commentValue) ? ParseComment(commentValue) : null;
-        if (eventName is "issues" or "issue_comment") await integrations.HandleWebhookAsync(repositoryId, issue, comment, action, HttpContext.RequestAborted);
+        if (eventName is "issues" or "issue_comment" or "pull_request") await integrations.HandleWebhookAsync(repositoryId, issue, comment, action, HttpContext.RequestAborted);
         return NoContent();
     }
 
@@ -118,5 +122,15 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
     }
 
     private static GitHubIssue ParseIssue(JsonElement e) => new(e.GetProperty("id").GetInt64(), e.GetProperty("number").GetInt32(), e.GetProperty("title").GetString()!, e.TryGetProperty("body", out var body) && body.ValueKind != JsonValueKind.Null ? body.GetString() : null, e.GetProperty("state").GetString()!, e.GetProperty("html_url").GetString()!, e.TryGetProperty("updated_at", out var updated) ? Instant.FromDateTimeUtc(updated.GetDateTime().ToUniversalTime()) : null, e.TryGetProperty("pull_request", out _), e.TryGetProperty("labels", out var labels) ? labels.EnumerateArray().Select(x => x.GetProperty("name").GetString()!).ToList() : []);
+    private static GitHubIssue ParsePullRequest(JsonElement pullRequest, JsonElement payload) => new(
+        pullRequest.GetProperty("id").GetInt64(),
+        payload.GetProperty("number").GetInt32(),
+        pullRequest.GetProperty("title").GetString()!,
+        pullRequest.TryGetProperty("body", out var body) && body.ValueKind != JsonValueKind.Null ? body.GetString() : null,
+        pullRequest.GetProperty("state").GetString()!,
+        pullRequest.GetProperty("html_url").GetString()!,
+        pullRequest.TryGetProperty("updated_at", out var updated) ? Instant.FromDateTimeUtc(updated.GetDateTime().ToUniversalTime()) : null,
+        true,
+        pullRequest.TryGetProperty("labels", out var labels) ? labels.EnumerateArray().Select(x => x.GetProperty("name").GetString()!).ToList() : []);
     private static GitHubComment ParseComment(JsonElement e) => new(e.GetProperty("id").GetInt64(), e.GetProperty("body").GetString()!, e.GetProperty("user").GetProperty("login").GetString()!, e.GetProperty("user").TryGetProperty("avatar_url", out var avatar) ? avatar.GetString() : null, e.TryGetProperty("updated_at", out var updated) ? Instant.FromDateTimeUtc(updated.GetDateTime().ToUniversalTime()) : null);
 }

@@ -146,7 +146,7 @@ public class GitHubIntegrationService(
         {
             var token = await TokenAsync(integration, ct);
             foreach (var issue in await github.ListIssuesAsync(token, integration.Owner, integration.Repository, ct))
-                if (!issue.IsPullRequest) await ApplyIssueAsync(integration, issue, token, ct);
+                await ApplyIssueAsync(integration, issue, token, ct);
             integration.LastSyncedAt = SystemClock.Instance.GetCurrentInstant();
             integration.LastError = null;
             await db.SaveChangesAsync(ct);
@@ -184,7 +184,7 @@ public class GitHubIntegrationService(
                 if (link is null)
                 {
                     var issue = await github.CreateIssueAsync(token, integration.Owner, integration.Repository, task.Name, task.Content, task.Tags, ct);
-                    db.GitHubIssueLinks.Add(new WtGitHubIssueLink { IntegrationId = integration.Id, TaskId = task.Id, GitHubIssueId = issue.Id, IssueNumber = issue.Number, HtmlUrl = issue.HtmlUrl, LastGitHubUpdatedAt = issue.UpdatedAt });
+                    db.GitHubIssueLinks.Add(new WtGitHubIssueLink { IntegrationId = integration.Id, TaskId = task.Id, GitHubIssueId = issue.Id, IssueNumber = issue.Number, IsPullRequest = issue.IsPullRequest, HtmlUrl = issue.HtmlUrl, LastGitHubUpdatedAt = issue.UpdatedAt });
                     await db.SaveChangesAsync(ct);
                 }
                 else await github.UpdateIssueAsync(token, integration, link.IssueNumber, task.Name, task.Content, task.Tags, task.CompleteReason.HasValue, ct);
@@ -228,7 +228,7 @@ public class GitHubIntegrationService(
         {
             task = new WtTask { BroadId = integration.BroadId, Broad = integration.Broad, SerialNumber = await taskSequence.AllocateAsync(integration.BroadId, ct), Name = issue.Title, Content = issue.Body, Tags = issue.Labels, CompleteReason = issue.State == "closed" ? TaskCompleteReason.Completed : null, CompletedAt = issue.State == "closed" ? SystemClock.Instance.GetCurrentInstant() : null };
             db.Tasks.Add(task);
-            link = new WtGitHubIssueLink { IntegrationId = integration.Id, Task = task, GitHubIssueId = issue.Id, IssueNumber = issue.Number, HtmlUrl = issue.HtmlUrl, LastGitHubUpdatedAt = issue.UpdatedAt };
+            link = new WtGitHubIssueLink { IntegrationId = integration.Id, Task = task, GitHubIssueId = issue.Id, IssueNumber = issue.Number, IsPullRequest = issue.IsPullRequest, HtmlUrl = issue.HtmlUrl, LastGitHubUpdatedAt = issue.UpdatedAt };
             db.GitHubIssueLinks.Add(link);
         }
         else if (!link.LastGitHubUpdatedAt.HasValue || !issue.UpdatedAt.HasValue || issue.UpdatedAt >= link.LastGitHubUpdatedAt)
@@ -237,7 +237,7 @@ public class GitHubIntegrationService(
             task.Name = issue.Title; task.Content = issue.Body; task.Tags = issue.Labels;
             task.CompleteReason = issue.State == "closed" ? TaskCompleteReason.Completed : null;
             task.CompletedAt = issue.State == "closed" ? SystemClock.Instance.GetCurrentInstant() : null;
-            link.IssueNumber = issue.Number; link.HtmlUrl = issue.HtmlUrl; link.LastGitHubUpdatedAt = issue.UpdatedAt;
+            link.IssueNumber = issue.Number; link.IsPullRequest = issue.IsPullRequest; link.HtmlUrl = issue.HtmlUrl; link.LastGitHubUpdatedAt = issue.UpdatedAt;
         }
         else return;
         await db.SaveChangesAsync(ct);
@@ -265,7 +265,7 @@ public class GitHubIntegrationService(
         var integration = await db.GitHubIntegrations.Include(i => i.Broad).SingleOrDefaultAsync(i => i.GitHubRepositoryId == repositoryId, ct);
         if (integration is null) return;
         var token = await TokenAsync(integration, ct);
-        if (issue is not null && !issue.IsPullRequest) await ApplyIssueAsync(integration, issue, token, ct);
+        if (issue is not null) await ApplyIssueAsync(integration, issue, token, ct);
         if (comment is not null && issue is not null && action is not "deleted")
         {
             var link = await db.GitHubIssueLinks.Include(l => l.Task).SingleOrDefaultAsync(l => l.IntegrationId == integration.Id && l.GitHubIssueId == issue.Id, ct);
