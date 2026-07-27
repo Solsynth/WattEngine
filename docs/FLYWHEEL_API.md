@@ -4,12 +4,16 @@ Flywheel is an opaque, end-to-end encrypted operation transport. A stream is
 always scoped to a Valve workspace and an application package identifier:
 
 ```text
-/api/flywheel/workspaces/{workspaceId}/apps/{appId}
+https://api.solian.app/flywheel/workspaces/{workspaceId}/apps/{appId}
 ```
 
 `appId` is required and must be the reverse-DNS application identifier used by
 Ring and the client WebSocket namespace, for example `dev.solsynth.maidkit`.
 There is no default app identifier and no cross-package access path.
+
+The API gateway owns the `/flywheel` prefix and rewrites it to Flywheel's
+internal `/api` route. Clients must use the public URL above; applications
+should not call the service's internal `/api/workspaces/...` path directly.
 
 ## Workspace setup
 
@@ -34,7 +38,7 @@ for UX only and must not be treated as authorization.
 2. Call `GET /api/workspaces/{workspaceId}/plan/status`. If the plan is Free,
    show an upgrade message instead of starting sync.
 3. Use the selected workspace `id` and the app's fixed package ID to call
-   Flywheel `GET bootstrap`.
+   Flywheel `POST bootstrap`.
 4. Register the authenticated account's MLS-capable device, establish or join
    the deterministic MLS group, then pull operations from cursor `0` or the
    locally saved cursor.
@@ -58,7 +62,10 @@ can revoke data they had already decrypted locally.
 
 ## Endpoints
 
-- `GET bootstrap` and `GET status` return the current cursor, MLS group ID,
+- `POST bootstrap` creates or loads the stream and returns the current cursor,
+  MLS group ID, MLS epoch, and whether a membership removal requires a key
+  rotation.
+- `GET status` returns the current cursor, MLS group ID,
   MLS epoch, and whether a membership removal requires a key rotation.
 - `POST devices`, `GET devices`, and `DELETE devices/{deviceId}` manage the
   authenticated user's device registrations.
@@ -74,7 +81,7 @@ can revoke data they had already decrypted locally.
 
 ### Bootstrap and status response
 
-`GET bootstrap` and `GET status` return:
+`POST bootstrap` and `GET status` return:
 
 ```json
 {

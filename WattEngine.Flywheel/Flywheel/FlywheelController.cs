@@ -10,7 +10,7 @@ namespace WattEngine.Flywheel.Flywheel;
 
 [ApiController]
 [Authorize]
-[Route("/api/flywheel/workspaces/{workspaceId:guid}/apps/{appId}")]
+[Route("/api/workspaces/{workspaceId:guid}/apps/{appId}")]
 public partial class FlywheelController(AppDatabase db, FlywheelService flywheel, IConfiguration configuration) : ControllerBase
 {
     private const int DefaultPullLimit = 100;
@@ -45,7 +45,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
         [Range(1, long.MaxValue)] public long MlsEpoch { get; set; }
     }
 
-    [HttpGet("bootstrap")]
+    [HttpPost("bootstrap")]
     public async Task<ActionResult<FlywheelStreamResponse>> Bootstrap(Guid workspaceId, string appId, CancellationToken ct)
     {
         var stream = await StreamAsync(workspaceId, appId, FlywheelService.ViewerRole, ct);
