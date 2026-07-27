@@ -14,6 +14,13 @@ public static class ServiceCollectionExtensions
         {
             services.AddDbContext<AppDatabase>();
             services.AddHttpContextAccessor();
+            services.AddGrpc(options =>
+            {
+                options.EnableDetailedErrors = true;
+                options.MaxReceiveMessageSize = 16 * 1024 * 1024;
+                options.MaxSendMessageSize = 16 * 1024 * 1024;
+            });
+            services.AddGrpcReflection();
             services.AddControllers().AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
