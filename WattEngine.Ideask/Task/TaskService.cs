@@ -149,6 +149,9 @@ public class TaskService(
 
         return await db.Tasks
             .Where(t => t.BroadId == broadId)
+            .OrderBy(t => t.SerialNumber)
+            .ThenBy(t => t.CreatedAt)
+            .ThenBy(t => t.Id)
             .Include(t => t.Broad)
             .Include(t => t.GitHubIssues)
             .ToListAsync();
