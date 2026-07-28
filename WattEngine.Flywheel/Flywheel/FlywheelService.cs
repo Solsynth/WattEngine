@@ -10,6 +10,7 @@ public class FlywheelService(AppDatabase db, RemoteWorkspaceService workspaces, 
     public const int ViewerRole = 25;
     public const int MemberRole = 50;
     public const int AdminRole = 75;
+    public const int OwnerRole = 100;
 
     public async Task<FlywheelAppSettings> GetSettingsAsync(Guid workspaceId, string appId, Guid accountId, int requiredRole, CancellationToken ct)
     {
@@ -54,6 +55,7 @@ public class FlywheelService(AppDatabase db, RemoteWorkspaceService workspaces, 
         blob.LastEventCursor = settings.EventCursor;
         blob.UpdatedAt = now;
         db.BlobRevisions.Add(revision);
+        AddAudit(settings.WorkspaceId, settings.AppId, blobId, revision.Revision, "blob.uploaded", accountId, now);
         await db.SaveChangesAsync(ct);
         return revision;
     }
@@ -65,6 +67,17 @@ public class FlywheelService(AppDatabase db, RemoteWorkspaceService workspaces, 
         if (stale.Count > 0) { db.BlobRevisions.RemoveRange(stale); await db.SaveChangesAsync(ct); }
         return stale;
     }
+
+    public async Task RequireOwnerAsync(Guid workspaceId, Guid accountId, CancellationToken ct)
+    {
+        if (!await workspaces.IsMemberWithRole(workspaceId, accountId, [OwnerRole], ct))
+            throw new FlywheelForbiddenException();
+        if (await workspaces.GetPlan(workspaceId, ct) is not (DyWorkspacePlan.Pro or DyWorkspacePlan.Enterprise))
+            throw new FlywheelSubscriptionRequiredException();
+    }
+
+    public void AddAudit(Guid workspaceId, string appId, Guid? blobId, long? revision, string action, Guid actorAccountId, Instant at) =>
+        db.AuditEntries.Add(new FlywheelAuditEntry { WorkspaceId = workspaceId, AppId = appId, BlobId = blobId, Revision = revision, Action = action, ActorAccountId = actorAccountId, CreatedAt = at });
 }
 
 public class FlywheelForbiddenException : Exception;

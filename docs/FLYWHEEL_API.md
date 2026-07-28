@@ -21,6 +21,8 @@ such as `dev.solsynth.maidkit`.
 - Viewer+ may list, inspect, download, and receive SSE notifications.
 - Member+ may upload encrypted blobs.
 - Admin/Owner may configure retained prior revisions per workspace × app.
+- Workspace Owners may inventory every Flywheel app/save, inspect audit metadata,
+  and permanently delete an individual opaque save.
 - Pro permits `0–3`; Enterprise permits `0–20`. `0` keeps only the current
   revision.
 
@@ -59,3 +61,18 @@ MaidKit assigns each vault a stable opaque blob UUID. It uses its existing
 shared sync passphrase. The passphrase and plaintext never leave the client.
 When SSE reports a newer revision, MaidKit downloads the archive and asks the
 client flow to decrypt/import it; it does not treat an SSE event as data.
+
+## Workspace-owner management API
+
+The owner-only gateway path is `GET /flywheel/workspaces/{workspaceId}/flywheel/apps`.
+It lists every app namespace with retained-byte and revision totals, but never
+returns encrypted content or S3 keys. Owners can also use:
+
+- `GET .../flywheel/apps/{appId}/blobs` for opaque save inventory.
+- `GET .../flywheel/apps/{appId}/audit?take=100` for metadata audit events.
+  Every `blob.uploaded` event includes the uploader account ID, blob UUID,
+  revision, and timestamp. Retention changes and owner deletions are recorded
+  too.
+- `DELETE .../flywheel/apps/{appId}/blobs/{blobId}` permanently deletes every
+  retained revision of that opaque save. This streams deletion to private S3
+  before removing the database metadata; it cannot be undone.

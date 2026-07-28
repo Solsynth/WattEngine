@@ -39,6 +39,22 @@ public class FlywheelBlobRevision
     public Instant CreatedAt { get; set; }
 }
 
+/// <summary>Metadata-only audit evidence. It never contains blob bytes, decrypted names, or S3 keys.</summary>
+public class FlywheelAuditEntry
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid WorkspaceId { get; set; }
+    [MaxLength(1024)] public string AppId { get; set; } = string.Empty;
+    public Guid? BlobId { get; set; }
+    public long? Revision { get; set; }
+    [MaxLength(64)] public string Action { get; set; } = string.Empty;
+    public Guid ActorAccountId { get; set; }
+    public Instant CreatedAt { get; set; }
+}
+
 public record FlywheelSettingsResponse(int RetainedRevisionCount, int MaxRetainedRevisionCount, long EventCursor);
 public record FlywheelBlobResponse(Guid BlobId, long CurrentRevision, long LastEventCursor, Instant UpdatedAt);
 public record FlywheelRevisionResponse(Guid BlobId, long Revision, int SchemeVersion, long Size, string Sha256, Instant CreatedAt);
+public record FlywheelOwnerAppResponse(string AppId, int RetainedRevisionCount, int BlobCount, int RetainedRevisionCountTotal, long RetainedBytes, Instant LastUpdatedAt);
+public record FlywheelOwnerBlobResponse(Guid BlobId, long CurrentRevision, int RetainedRevisionCount, long RetainedBytes, Instant UpdatedAt);
+public record FlywheelAuditResponse(string AppId, Guid? BlobId, long? Revision, string Action, Guid ActorAccountId, Instant CreatedAt);

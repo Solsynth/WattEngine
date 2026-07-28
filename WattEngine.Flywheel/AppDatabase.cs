@@ -10,6 +10,7 @@ public class AppDatabase(DbContextOptions<AppDatabase> options, IConfiguration c
     public DbSet<FlywheelAppSettings> AppSettings => Set<FlywheelAppSettings>();
     public DbSet<FlywheelBlob> Blobs => Set<FlywheelBlob>();
     public DbSet<FlywheelBlobRevision> BlobRevisions => Set<FlywheelBlobRevision>();
+    public DbSet<FlywheelAuditEntry> AuditEntries => Set<FlywheelAuditEntry>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -23,6 +24,8 @@ public class AppDatabase(DbContextOptions<AppDatabase> options, IConfiguration c
         modelBuilder.Entity<FlywheelAppSettings>().HasIndex(x => new { x.WorkspaceId, x.AppId }).IsUnique();
         modelBuilder.Entity<FlywheelBlob>().HasIndex(x => new { x.WorkspaceId, x.AppId, x.BlobId }).IsUnique();
         modelBuilder.Entity<FlywheelBlobRevision>().HasIndex(x => new { x.BlobId, x.Revision }).IsUnique();
+        modelBuilder.Entity<FlywheelAuditEntry>().HasIndex(x => new { x.WorkspaceId, x.AppId, x.CreatedAt });
+        modelBuilder.Entity<FlywheelAuditEntry>().HasIndex(x => new { x.WorkspaceId, x.BlobId, x.CreatedAt });
     }
 }
 

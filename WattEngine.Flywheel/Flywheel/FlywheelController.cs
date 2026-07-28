@@ -24,6 +24,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
         var cap = await flywheel.GetRetentionCapAsync(workspaceId, ct);
         if (request.RetainedRevisionCount > cap) return BadRequest($"This workspace plan permits at most {cap} retained prior revisions.");
         settings.RetainedRevisionCount = request.RetainedRevisionCount;
+        flywheel.AddAudit(workspaceId, appId, null, null, "app.retention-updated", CurrentUserId(), NodaTime.SystemClock.Instance.GetCurrentInstant());
         await db.SaveChangesAsync(ct);
         return ToSettings(settings, cap);
     }
