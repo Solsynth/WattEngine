@@ -28,7 +28,7 @@ public class WtTask : ModelBase
 
     public int Priority { get; set; }
     public int SerialNumber { get; set; }
-    [NotMapped] public string TaskKey => string.IsNullOrWhiteSpace(Broad?.TaskPrefix)
+    [NotMapped, JsonPropertyName("task_key")] public string TaskKey => string.IsNullOrWhiteSpace(Broad?.TaskPrefix)
         ? SerialNumber.ToString()
         : $"{Broad.TaskPrefix}-{SerialNumber}";
 

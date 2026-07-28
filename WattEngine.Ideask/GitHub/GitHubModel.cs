@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using DysonNetwork.Shared.Models;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +49,9 @@ public class WtGitHubIssueLink : ModelBase
     public long GitHubIssueId { get; set; }
     public int IssueNumber { get; set; }
     public bool IsPullRequest { get; set; }
+    [NotMapped] public string? RepositoryFullName => Integration is null
+        ? null
+        : $"{Integration.Owner}/{Integration.Repository}";
     [MaxLength(2048)] public string HtmlUrl { get; set; } = null!;
     public Instant? LastGitHubUpdatedAt { get; set; }
 }

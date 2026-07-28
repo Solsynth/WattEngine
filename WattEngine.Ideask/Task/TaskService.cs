@@ -154,6 +154,7 @@ public class TaskService(
             .ThenBy(t => t.Id)
             .Include(t => t.Broad)
             .Include(t => t.GitHubIssues)
+            .ThenInclude(link => link.Integration)
             .ToListAsync();
     }
 
@@ -164,6 +165,7 @@ public class TaskService(
             .Include(t => t.Broad)
             .Include(t => t.Assignees)
             .Include(t => t.GitHubIssues)
+            .ThenInclude(link => link.Integration)
             .FirstOrDefaultAsync(t => t.Id == taskId);
 
         if (task == null) return null;
