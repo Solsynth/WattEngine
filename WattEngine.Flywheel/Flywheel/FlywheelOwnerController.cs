@@ -8,10 +8,10 @@ namespace WattEngine.Flywheel.Flywheel;
 
 /// <summary>Workspace-owner management APIs. All responses deliberately exclude encrypted bytes and storage keys.</summary>
 [ApiController, Authorize]
-[Route("/api/workspaces/{workspaceId:guid}/flywheel")]
+[Route("/api/workspaces/{workspaceId:guid}/apps")]
 public class FlywheelOwnerController(AppDatabase db, FlywheelService flywheel, FlywheelBlobStorage storage, IClock clock) : ControllerBase
 {
-    [HttpGet("apps")]
+    [HttpGet]
     public async Task<ActionResult<List<FlywheelOwnerAppResponse>>> ListApps(Guid workspaceId, CancellationToken ct)
     {
         await Owner(workspaceId, ct);
@@ -27,7 +27,7 @@ public class FlywheelOwnerController(AppDatabase db, FlywheelService flywheel, F
         return result.OrderBy(x => x.AppId).ToList();
     }
 
-    [HttpGet("apps/{appId}/blobs")]
+    [HttpGet("{appId}/management/blobs")]
     public async Task<ActionResult<List<FlywheelOwnerBlobResponse>>> ListAppBlobs(Guid workspaceId, string appId, CancellationToken ct)
     {
         await Owner(workspaceId, ct);
@@ -41,7 +41,7 @@ public class FlywheelOwnerController(AppDatabase db, FlywheelService flywheel, F
         return result;
     }
 
-    [HttpGet("apps/{appId}/audit")]
+    [HttpGet("{appId}/management/audit")]
     public async Task<ActionResult<List<FlywheelAuditResponse>>> GetAudit(Guid workspaceId, string appId, [FromQuery] int take = 100, CancellationToken ct = default)
     {
         await Owner(workspaceId, ct);
@@ -50,7 +50,7 @@ public class FlywheelOwnerController(AppDatabase db, FlywheelService flywheel, F
             .Select(x => new FlywheelAuditResponse(x.AppId, x.BlobId, x.Revision, x.Action, x.ActorAccountId, x.CreatedAt)).ToListAsync(ct);
     }
 
-    [HttpDelete("apps/{appId}/blobs/{blobId:guid}")]
+    [HttpDelete("{appId}/management/blobs/{blobId:guid}")]
     public async Task<IActionResult> DeleteBlob(Guid workspaceId, string appId, Guid blobId, CancellationToken ct)
     {
         var actor = await Owner(workspaceId, ct);
