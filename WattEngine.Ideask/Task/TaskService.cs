@@ -138,7 +138,7 @@ public class TaskService(
             );
     }
 
-    public async System.Threading.Tasks.Task<List<WtTask>> GetTasksAsync(Guid broadId)
+    public async System.Threading.Tasks.Task<List<WtTask>> GetTasksAsync(Guid broadId, TaskListFilter? filter = null)
     {
         var accountId = GetCurrentAccountId();
         var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == broadId);
@@ -147,8 +147,50 @@ public class TaskService(
         if (broad.AccountId != accountId)
             throw new UnauthorizedAccessException("No access to broad");
 
-        return await db.Tasks
-            .Where(t => t.BroadId == broadId)
+        filter ??= new TaskListFilter();
+
+        var tasks = db.Tasks.Where(t => t.BroadId == broadId);
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var pattern = $"%{filter.Search.Trim()}%";
+            tasks = tasks.Where(t =>
+                EF.Functions.ILike(t.Name, pattern) ||
+                (t.Description != null && EF.Functions.ILike(t.Description, pattern)) ||
+                (t.Content != null && EF.Functions.ILike(t.Content, pattern)));
+        }
+
+        if (filter.Status.HasValue)
+        {
+            tasks = filter.Status.Value switch
+            {
+                TaskStatus.Open => tasks.Where(t => t.CompleteReason == null),
+                TaskStatus.Completed => tasks.Where(t => t.CompleteReason == TaskCompleteReason.Completed),
+                TaskStatus.Skipped => tasks.Where(t => t.CompleteReason == TaskCompleteReason.Skipped),
+                TaskStatus.Duplicated => tasks.Where(t => t.CompleteReason == TaskCompleteReason.Duplicated),
+                _ => tasks
+            };
+        }
+
+        if (filter.Priority.HasValue)
+            tasks = tasks.Where(t => t.Priority == filter.Priority.Value);
+        if (filter.GroupId.HasValue)
+            tasks = tasks.Where(t => t.GroupId == filter.GroupId.Value);
+        else if (filter.Ungrouped == true)
+            tasks = tasks.Where(t => t.GroupId == null);
+        if (filter.AssigneeAccountId.HasValue)
+            tasks = tasks.Where(t => t.Assignees.Any(a => a.AccountId == filter.AssigneeAccountId.Value));
+        if (!string.IsNullOrWhiteSpace(filter.Tag))
+        {
+            var tag = filter.Tag.Trim();
+            tasks = tasks.Where(t => t.Tags.Contains(tag));
+        }
+        if (filter.DeadlineFrom.HasValue)
+            tasks = tasks.Where(t => t.DeadlineAt >= filter.DeadlineFrom.Value);
+        if (filter.DeadlineTo.HasValue)
+            tasks = tasks.Where(t => t.DeadlineAt <= filter.DeadlineTo.Value);
+
+        return await tasks
             .OrderBy(t => t.SerialNumber)
             .ThenBy(t => t.CreatedAt)
             .ThenBy(t => t.Id)

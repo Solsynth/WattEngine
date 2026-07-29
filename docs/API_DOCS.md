@@ -30,6 +30,19 @@ Returns all workspaces the authenticated user belongs to.
 
 ---
 
+#### Get My Individual Workspace
+```
+GET /api/workspaces/individual
+```
+Returns the authenticated account's individual workspace.
+
+Each account has exactly one active individual workspace. Valve creates it automatically when it receives the account-created event; clients cannot create an individual workspace through `POST /api/workspaces`.
+
+**Response:** `WtWorkspace`
+**Errors:** `404 Not Found` when the workspace has not yet been provisioned.
+
+---
+
 #### Get Workspace by Slug or ID
 ```
 GET /api/workspaces/{slugOrId}
@@ -58,7 +71,7 @@ Returns a single workspace by its slug or GUID.
 ```
 POST /api/workspaces
 ```
-Creates a new workspace. The authenticated user becomes the owner.
+Creates a new organization workspace. The authenticated user becomes the owner. Individual workspaces are created automatically with the account and cannot be created through this endpoint.
 
 **Request Body:**
 ```json
@@ -77,7 +90,7 @@ Creates a new workspace. The authenticated user becomes the owner.
 | slug | `string` | Yes | Unique slug (max 1024 chars) |
 | name | `string` | Yes | Display name (max 1024 chars) |
 | description | `string?` | No | Description (max 4096 chars) |
-| type | `WorkspaceType` | Yes | `0` = Individual, `1` = Organization |
+| type | `WorkspaceType` | Yes | Must be `1` = Organization (`0` = Individual is rejected) |
 | pictureId | `string?` | No | Cloud file ID for the workspace icon |
 | backgroundId | `string?` | No | Cloud file ID for the workspace background |
 
@@ -148,7 +161,7 @@ Lists all members of a workspace. Requires at least Viewer role.
 ```
 POST /api/workspaces/{slugOrId}/members/invite
 ```
-Invites a user to the workspace. Requires Admin role. Only Owner can invite Admins.
+Invites a user to the workspace. Requires Admin role. Only Owner can invite Admins. Individual workspaces may invite bot accounts only; a bot account has an `automatedId`.
 
 **Request Body:**
 ```json
@@ -160,7 +173,7 @@ Invites a user to the workspace. Requires Admin role. Only Owner can invite Admi
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| accountId | `Guid` | Yes | Account to invite |
+| accountId | `Guid` | Yes | Account to invite; must identify a bot for an individual workspace |
 | role | `int` | Yes | Role level (25, 50, 75, or 100) |
 
 **Response:** `WtWorkspaceMember`
@@ -421,7 +434,7 @@ Returns the quota limit for a specific resource type.
 ```
 POST /api/workspaces/{slugOrId}/plan/assign-bundled
 ```
-Assigns a bundled Pro plan to the workspace. Requires Owner and perk level 3+.
+Assigns a bundled Pro plan to an individual workspace. Requires Owner and perk level 3+. Eligible accounts have the bundled Pro plan automatically assigned when their individual workspace is provisioned; organization workspaces cannot receive bundled Pro plans.
 
 **Response:** `WtWorkspaceBundledPlan`
 
@@ -446,7 +459,7 @@ Removes the bundled plan assignment.
 ```
 POST /api/workspaces/plan/reassign-bundled
 ```
-Reassigns bundled plan to a different workspace. Subject to 7-day cooldown.
+Reassigns bundled plan to a different individual workspace owned by the account. Subject to 7-day cooldown. Organization workspaces are rejected.
 
 **Request Body:**
 ```json
@@ -823,6 +836,20 @@ Retrieves workspace information by ID.
 | name | `string` | Workspace name |
 | type | `int` | Workspace type |
 | ownerAccountId | `string` | Owner account GUID |
+
+---
+
+#### GetIndividualWorkspace
+Retrieves the active individual workspace owned by an account.
+
+**Request:** `DyGetUserWorkspacesRequest`
+| Field | Type | Description |
+|-------|------|-------------|
+| accountId | `string` | Account GUID |
+
+**Response:** `DyWorkspace`
+
+Returns `NotFound` when the account has no provisioned individual workspace and `InvalidArgument` for a malformed account ID.
 
 ---
 

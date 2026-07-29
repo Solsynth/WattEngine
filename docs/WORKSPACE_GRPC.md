@@ -20,9 +20,10 @@ using DysonNetwork.Shared.Registry;
 
 public class Example(RemoteWorkspaceService workspaces)
 {
-    public async Task Demo()
+    public async Task Demo(Guid accountId)
     {
         var workspace = await workspaces.GetWorkspaceBySlug("my-workspace");
+        var individualWorkspace = await workspaces.GetIndividualWorkspace(accountId);
         var plan = await workspaces.GetPlan(Guid.Parse(workspace.Id));
     }
 }
@@ -50,6 +51,12 @@ Accepts `DyGetWorkspaceBatchRequest.ids` (`repeated string`) and returns `DyGetW
 ### GetUserWorkspaces
 
 Accepts `DyGetUserWorkspacesRequest.account_id` and returns `DyGetUserWorkspacesResponse.workspace_ids`. Only active workspace memberships are included.
+
+### GetIndividualWorkspace
+
+Accepts `DyGetUserWorkspacesRequest.account_id` and returns the `DyWorkspace` that is the account's active individual workspace. This is the account-owned workspace created automatically when Valve processes the account-created event; it is not a membership lookup.
+
+`GetIndividualWorkspace` returns `NotFound` if provisioning has not completed (or the workspace was deleted) and `InvalidArgument` for an invalid account ID. Use `RemoteWorkspaceService.GetIndividualWorkspace(accountId)` for inter-service callers.
 
 ### IsMemberWithRole
 
@@ -87,4 +94,4 @@ Each supplied member must contain `workspace_id` and `account_id`. If no active 
 
 ## Error behavior
 
-Malformed GUID fields return gRPC `InvalidArgument`. `GetWorkspace` returns `NotFound` when the workspace does not exist. Callers should propagate gRPC cancellation/deadline tokens as appropriate.
+Malformed GUID fields return gRPC `InvalidArgument`. `GetWorkspace` and `GetIndividualWorkspace` return `NotFound` when the requested workspace does not exist. Callers should propagate gRPC cancellation/deadline tokens as appropriate.

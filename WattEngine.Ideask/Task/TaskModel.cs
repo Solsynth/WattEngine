@@ -16,6 +16,30 @@ public enum TaskCompleteReason
     Duplicated
 }
 
+/// <summary>
+/// The derived lifecycle state exposed by the task-list API.
+/// </summary>
+public enum TaskStatus
+{
+    Open,
+    Completed,
+    Skipped,
+    Duplicated
+}
+
+public class TaskListFilter
+{
+    [MaxLength(256)] public string? Search { get; init; }
+    public TaskStatus? Status { get; init; }
+    [Range(0, int.MaxValue)] public int? Priority { get; init; }
+    public Guid? GroupId { get; init; }
+    public bool? Ungrouped { get; init; }
+    public Guid? AssigneeAccountId { get; init; }
+    [MaxLength(128)] public string? Tag { get; init; }
+    public Instant? DeadlineFrom { get; init; }
+    public Instant? DeadlineTo { get; init; }
+}
+
 public class WtTask : ModelBase
 {
     public Guid Id { get; set; } = Guid.NewGuid();

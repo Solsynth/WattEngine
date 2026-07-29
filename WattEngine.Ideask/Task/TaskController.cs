@@ -67,14 +67,21 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpGet("broads/{broadId:guid}/tasks")]
     [Authorize]
-    public async Task<IActionResult> ListTasks([FromRoute] Guid broadId)
+    public async Task<IActionResult> ListTasks(
+        [FromRoute] Guid broadId,
+        [FromQuery] TaskListFilter filter)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
             return Unauthorized();
 
         try
         {
-            var tasks = await taskService.GetTasksAsync(broadId);
+            if (filter.GroupId.HasValue && filter.Ungrouped == true)
+                return BadRequest("GroupId and Ungrouped cannot both be specified.");
+            if (filter.DeadlineFrom.HasValue && filter.DeadlineTo.HasValue && filter.DeadlineFrom > filter.DeadlineTo)
+                return BadRequest("DeadlineFrom must be earlier than or equal to DeadlineTo.");
+
+            var tasks = await taskService.GetTasksAsync(broadId, filter);
             return Ok(tasks);
         }
         catch (KeyNotFoundException)
