@@ -92,6 +92,15 @@ public class WorkspaceGrpcService(
         return response;
     }
 
+    public override async Task<DyWorkspace> GetIndividualWorkspace(
+        DyGetUserWorkspacesRequest request, ServerCallContext context)
+    {
+        var workspace = await workspaces.GetIndividualWorkspace(ParseId(request.AccountId, "account_id"));
+        if (workspace is null)
+            throw new RpcException(new Status(StatusCode.NotFound, "Individual workspace not found."));
+        return ToProto(workspace);
+    }
+
     public override async Task<BoolValue> IsMemberWithRole(
         DyIsWorkspaceMemberWithRoleRequest request, ServerCallContext context)
     {

@@ -74,6 +74,16 @@ public class WorkspaceController(
         return await ws.GetUserWorkspaces(currentUser.Id);
     }
 
+    [HttpGet("individual")]
+    [Authorize]
+    public async Task<ActionResult<WtWorkspace>> GetMyIndividualWorkspace()
+    {
+        if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
+
+        var workspace = await ws.GetIndividualWorkspace(currentUser.Id);
+        return workspace is null ? NotFound() : Ok(workspace);
+    }
+
     [HttpGet("{slug}")]
     public async Task<ActionResult<WtWorkspace>> GetWorkspace(string slug)
     {
@@ -87,6 +97,9 @@ public class WorkspaceController(
     public async Task<ActionResult<WtWorkspace>> CreateWorkspace([FromBody] CreateWorkspaceRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
+
+        if (request.Type == WorkspaceType.Individual)
+            return BadRequest("Individual workspaces are created automatically with the account.");
 
         var existing = await ws.GetBySlug(request.Slug);
         if (existing != null)

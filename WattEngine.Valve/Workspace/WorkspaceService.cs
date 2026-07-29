@@ -1,6 +1,7 @@
 using DysonNetwork.Shared.Cache;
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
+using DysonNetwork.Shared.Queue;
 using DysonNetwork.Shared.Registry;
 using Microsoft.EntityFrameworkCore;
 using NodaTime;
@@ -30,6 +31,34 @@ public class WorkspaceService(
             .FirstOrDefaultAsync(w => w.Id == id && w.DeletedAt == null);
     }
 
+    public async Task<WtWorkspace?> GetIndividualWorkspace(Guid accountId)
+    {
+        return await db.Workspaces.FirstOrDefaultAsync(w =>
+            w.OwnerAccountId == accountId &&
+            w.Type == WorkspaceType.Individual &&
+            w.DeletedAt == null);
+    }
+
+    public async Task<WtWorkspace> EnsureIndividualWorkspace(AccountCreatedEvent account)
+    {
+        var existing = await GetIndividualWorkspace(account.AccountId);
+        if (existing is not null) return existing;
+
+        var workspace = new WtWorkspace
+        {
+            Slug = $"individual-{account.AccountId:N}",
+            Name = account.Nick,
+            Type = WorkspaceType.Individual
+        };
+        await Create(workspace, account.AccountId);
+
+        var profile = await profileGrpc.GetAccountAsync(new DyGetAccountRequest { Id = account.AccountId.ToString() });
+        if (profile.PerkLevel >= WorkspacePlanPricing.BundledPlanRequiredPerkLevel)
+            await AssignBundledPlan(account.AccountId, workspace.Id);
+
+        return workspace;
+    }
+
     public async Task<List<WtWorkspace>> GetUserWorkspaces(Guid accountId)
     {
         var cacheKey = $"{CacheKeyPrefix}user:{accountId}";
@@ -50,6 +79,10 @@ public class WorkspaceService(
 
     public async Task<WtWorkspace> Create(WtWorkspace workspace, Guid creatorAccountId)
     {
+        if (workspace.Type == WorkspaceType.Individual &&
+            await GetIndividualWorkspace(creatorAccountId) is not null)
+            throw new InvalidOperationException("An account can only own one individual workspace.");
+
         workspace.OwnerAccountId = creatorAccountId;
         db.Workspaces.Add(workspace);
 
@@ -127,6 +160,16 @@ public class WorkspaceService(
 
     public async Task<WtWorkspaceMember> InviteMember(Guid workspaceId, Guid accountId, int role)
     {
+        var workspace = await GetById(workspaceId)
+            ?? throw new InvalidOperationException("Workspace not found.");
+
+        if (workspace.Type == WorkspaceType.Individual)
+        {
+            var account = await profileGrpc.GetAccountAsync(new DyGetAccountRequest { Id = accountId.ToString() });
+            if (string.IsNullOrWhiteSpace(account.AutomatedId))
+                throw new InvalidOperationException("Individual workspaces can only invite bot accounts.");
+        }
+
         var existing = await db.WorkspaceMembers
             .FirstOrDefaultAsync(m => m.WorkspaceId == workspaceId && m.AccountId == accountId);
 
@@ -283,6 +326,9 @@ public class WorkspaceService(
 
         if (workspace.OwnerAccountId != accountId)
             throw new InvalidOperationException("Only the workspace owner can assign a bundled plan.");
+
+        if (workspace.Type != WorkspaceType.Individual)
+            throw new InvalidOperationException("Bundled Pro plans can only be assigned to an individual workspace.");
 
         var existing = await db.WorkspaceBundledPlans
             .FirstOrDefaultAsync(b => b.AccountId == accountId && b.DeletedAt == null);

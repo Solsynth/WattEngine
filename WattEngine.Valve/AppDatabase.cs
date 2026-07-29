@@ -71,6 +71,14 @@ public class AppDatabase(
         modelBuilder.Entity<WtWorkspaceMember>()
             .HasIndex(m => new { m.WorkspaceId, m.AccountId })
             .IsUnique();
+
+        // Every account owns exactly one active individual workspace. Organization
+        // workspaces are intentionally not part of this constraint.
+        modelBuilder.Entity<WtWorkspace>()
+            .HasIndex(w => w.OwnerAccountId)
+            .HasDatabaseName("ix_workspaces_owner_individual")
+            .IsUnique()
+            .HasFilter("type = 0 AND deleted_at IS NULL");
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
