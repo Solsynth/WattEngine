@@ -33,6 +33,7 @@ builder.Services.AddAppScheduledJobs();
 
 // Register payment event listener
 builder.Services.AddEventBus()
+    .AddFileMetadataReferenceListener<AppDatabase>()
     .AddListener<AccountCreatedEvent>(
         AccountCreatedEvent.Type,
         async (evt, ctx) =>

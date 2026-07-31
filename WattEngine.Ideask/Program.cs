@@ -1,4 +1,5 @@
 using DysonNetwork.Shared.Auth;
+using DysonNetwork.Shared.EventBus;
 using DysonNetwork.Shared.Networking;
 using DysonNetwork.Shared.Registry;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,8 @@ builder.Services.AddWorkspaceService();
 builder.Services.AddAppFlushHandlers();
 builder.Services.AddAppBusinessServices(builder.Configuration);
 builder.Services.AddAppScheduledJobs();
+builder.Services.AddEventBus()
+    .AddFileMetadataReferenceListener<AppDatabase>();
 
 builder.AddSwaggerManifest(
     "WattEngine.Ideask",
