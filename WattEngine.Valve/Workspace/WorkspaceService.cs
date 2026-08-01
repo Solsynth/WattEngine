@@ -83,6 +83,10 @@ public class WorkspaceService(
             await GetIndividualWorkspace(creatorAccountId) is not null)
             throw new InvalidOperationException("An account can only own one individual workspace.");
 
+        if (await CountOwnedFreeWorkspaces(creatorAccountId) >= 1)
+            throw new InvalidOperationException(
+                "You can only have one free workspace. Upgrade your existing workspace to a paid plan before creating another.");
+
         workspace.OwnerAccountId = creatorAccountId;
         db.Workspaces.Add(workspace);
 
@@ -310,6 +314,14 @@ public class WorkspaceService(
         await cache.RemoveAsync(cacheKey);
     }
 
+    private async Task<int> CountOwnedFreeWorkspaces(Guid accountId)
+    {
+        return await db.Workspaces.CountAsync(w =>
+            w.OwnerAccountId == accountId &&
+            w.DeletedAt == null &&
+            w.Plan == WorkspacePlan.Free);
+    }
+
     #region Bundled Plans
 
     public async Task<WtWorkspaceBundledPlan?> GetBundledPlan(Guid accountId)
@@ -400,12 +412,19 @@ public class WorkspaceService(
             .FirstOrDefaultAsync(b => b.AccountId == accountId && b.IsEnabled && b.DeletedAt == null)
             ?? throw new InvalidOperationException("No active bundled plan found.");
 
+        var workspace = await GetById(bundledPlan.WorkspaceId);
+
+        // Reverting to Free must not leave the account with more than one free workspace.
+        if (workspace != null && workspace.IsBundled &&
+            await CountOwnedFreeWorkspaces(accountId) >= 1)
+            throw new InvalidOperationException(
+                "You can only have one free workspace. Upgrade or delete your other free workspace before unassigning the bundled plan.");
+
         bundledPlan.IsEnabled = false;
         bundledPlan.DisabledAt = SystemClock.Instance.GetCurrentInstant();
         db.WorkspaceBundledPlans.Update(bundledPlan);
 
         // Revert workspace to Free
-        var workspace = await GetById(bundledPlan.WorkspaceId);
         if (workspace != null && workspace.IsBundled)
         {
             workspace.Plan = WorkspacePlan.Free;

@@ -127,8 +127,15 @@ public class WorkspaceController(
             workspace.Background = SnCloudFileReferenceObject.FromProtoValue(background);
         }
 
-        await ws.Create(workspace, currentUser.Id);
-        return CreatedAtAction(nameof(GetWorkspace), new { slug = workspace.Slug }, workspace);
+        try
+        {
+            await ws.Create(workspace, currentUser.Id);
+            return CreatedAtAction(nameof(GetWorkspace), new { slug = workspace.Slug }, workspace);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPatch("{slug}")]
