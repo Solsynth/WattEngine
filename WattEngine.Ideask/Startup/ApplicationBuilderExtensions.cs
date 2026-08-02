@@ -10,6 +10,7 @@ public static class ApplicationBuilderExtensions
         {
             app.UseAuthentication();
             app.UseDyAuthModelProjection();
+            app.UseMiddleware<RemotePermissionMiddleware>();
             app.UseAuthorization();
             app.MapControllers();
 

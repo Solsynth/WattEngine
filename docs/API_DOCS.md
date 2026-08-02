@@ -799,6 +799,143 @@ Removes a user assignment from a task.
 
 ---
 
+## Platform Admin Endpoints
+
+Platform-level administration for WattEngine services. Unlike the workspace- and account-scoped
+endpoints above, these require a **platform permission node** (see [Permission nodes](#permission-nodes))
+checked against Padlock by `RemotePermissionMiddleware` — workspace membership is **not** required.
+All routes are under `/api/admin` and are gated by `[Authorize]` plus one or more
+`[AskPermission(...)]` attributes; they return `401`/`403` without the granting node.
+
+### Permission Nodes
+
+Nodes are defined as constants in `DysonNetwork.Shared/Auth/PermissionKeys.cs` and auto-seeded into
+the Padlock `default` permission group at startup (reflection over the registry). Deliverable shape:
+`{domain}.{resource}.{action}`.
+
+| Node | Description |
+|------|-------------|
+| `workspaces.view` | List / inspect any workspace |
+| `workspaces.manage` | Update any workspace |
+| `workspaces.delete` | Soft-delete any workspace |
+| `workspaces.plans.manage` | Override a workspace's plan |
+| `boards.view` | List / inspect any board |
+| `boards.manage` | Update any board |
+| `boards.delete` | Delete any board |
+| `tasks.view` | List / inspect any task |
+| `tasks.manage` | Update any task |
+| `tasks.delete` | Delete any task |
+| `tasks.integrations.manage` | List / remove GitHub integrations |
+| `flywheel.view` | Flywheel usage stats and app inventory |
+| `flywheel.apps.manage` | Override app retention settings |
+| `flywheel.blobs.delete` | Purge a blob and its revisions |
+| `flywheel.audit.view` | Read Flywheel audit log |
+
+### WattEngine.Valve Admin
+
+#### List Workspaces
+
+`GET /api/admin/workspaces?type=&plan=&q=&includeDeleted=&take=50&offset=0`
+
+Gated by `workspaces.view`. Supports `type` / `plan` enum filters, `q` slug/name search,
+`includeDeleted`, and pagination (`X-Total` header). Field `member_count` reflects active members.
+
+#### Get Workspace Detail
+
+`GET /api/admin/workspaces/{id}` — workspace, active members, role permissions, user
+permission overrides, and bundled plans. Gated by `workspaces.view`.
+
+#### Update Workspace
+
+`PATCH /api/admin/workspaces/{id}` — update `name`, `slug`, `description`. Gated by `workspaces.manage`.
+Slug conflicts return `409`.
+
+#### Update Workspace Plan
+
+`PUT /api/admin/workspaces/{id}/plan` — override `plan`, `plan_expires_at`, `is_bundled`.
+Gated by `workspaces.plans.manage`.
+
+#### Delete Workspace
+
+`DELETE /api/admin/workspaces/{id}` — soft-delete the workspace. Gated by `workspaces.delete`.
+
+#### Get Workspace Stats
+
+`GET /api/admin/stats` — totals and breakdowns by workspace type/plan. Gated by `workspaces.view`.
+
+### WattEngine.Ideask Admin
+
+#### List Boards
+
+`GET /api/admin/boards?workspaceId=&accountId=&visibility=&q=&includeDeleted=&take=50&offset=0`
+Gated by `boards.view`. Each item includes its current task count.
+
+#### Get Board Detail
+
+`GET /api/admin/boards/{id}` — the board plus a summary of its tasks. Gated by `boards.view`.
+
+#### Update Board
+
+`PATCH /api/admin/boards/{id}` — update `name`, `description`, `visibility`, `task_prefix`.
+Gated by `boards.manage`.
+
+#### Delete Board
+
+`DELETE /api/admin/boards/{id}` — soft-delete the board and its tasks. Gated by `boards.delete`.
+
+#### List Tasks
+
+`GET /api/admin/tasks?broadId=&status=&groupId=&q=&includeDeleted=&take=50&offset=0`
+Gated by `tasks.view`. `status` is one of `Open`, `Completed`, `Skipped`, `Duplicated`.
+
+#### Get Task Detail
+
+`GET /api/admin/tasks/{id}` — the task, assignees, comments, and GitHub issue links. Gated by `tasks.view`.
+
+#### Update Task
+
+`PATCH /api/admin/tasks/{id}` — update `name`, `description`, `priority`, `deadline_at`, and
+completion state (`complete: true/false`). Gated by `tasks.manage`.
+
+#### Delete Task
+
+`DELETE /api/admin/tasks/{id}` — soft-delete the task. Gated by `tasks.delete`.
+
+#### List / Remove GitHub Integrations
+
+`GET /api/admin/github-integrations?broadId=&q=&includeDeleted=&take=50&offset=0` and
+`DELETE /api/admin/github-integrations/{id}` — inspect sync state (incl. `last_error`) and remove
+misbehaving integrations and their linked issues/comments. Gated by `tasks.integrations.manage`.
+
+### WattEngine.Flywheel Admin
+
+#### Get Flywheel Stats
+
+`GET /api/admin/flywheel/stats` — distinct workspaces, app settings, blobs, revisions, total
+retained bytes, and audit counts. Gated by `flywheel.view`.
+
+#### List App Settings
+
+`GET /api/admin/flywheel/apps?workspaceId=&take=50&offset=0` — per-app settings with blob/revision
+counts and retained bytes. Gated by `flywheel.view`.
+
+#### Inspect Audit Log
+
+`GET /api/admin/flywheel/audit?workspaceId=&appId=&take=50&offset=0` — metadata-only audit trail
+(never blob bytes or storage keys). Gated by `flywheel.audit.view`.
+
+#### Override App Retention
+
+`PATCH /api/admin/flywheel/apps/{id}` — set `retained_revision_count` (admin override, not capped by
+workspace plan). Gated by `flywheel.apps.manage`.
+
+#### Purge Blob
+
+`DELETE /api/admin/flywheel/blobs/{blobId}?workspaceId={id}&appId={app}` — removes the blob, all its
+S3 objects and revisions, and writes a `blob.admin_deleted` audit entry. Gated by `flywheel.blobs.delete`.
+
+---
+
 ## gRPC Services (Inter-Service)
 
 ### WorkspaceGrpcService

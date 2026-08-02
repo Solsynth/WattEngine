@@ -40,21 +40,24 @@ public class WorkspaceService(
     }
 
     public async Task<WtWorkspace> EnsureIndividualWorkspace(AccountCreatedEvent account)
+        => await EnsureIndividualWorkspace(account.AccountId, account.Nick);
+
+    public async Task<WtWorkspace> EnsureIndividualWorkspace(Guid accountId, string nick)
     {
-        var existing = await GetIndividualWorkspace(account.AccountId);
+        var existing = await GetIndividualWorkspace(accountId);
         if (existing is not null) return existing;
 
         var workspace = new WtWorkspace
         {
-            Slug = $"individual-{account.AccountId:N}",
-            Name = account.Nick,
+            Slug = $"individual-{accountId:N}",
+            Name = nick,
             Type = WorkspaceType.Individual
         };
-        await Create(workspace, account.AccountId);
+        await Create(workspace, accountId);
 
-        var profile = await profileGrpc.GetAccountAsync(new DyGetAccountRequest { Id = account.AccountId.ToString() });
+        var profile = await profileGrpc.GetAccountAsync(new DyGetAccountRequest { Id = accountId.ToString() });
         if (profile.PerkLevel >= WorkspacePlanPricing.BundledPlanRequiredPerkLevel)
-            await AssignBundledPlan(account.AccountId, workspace.Id);
+            await AssignBundledPlan(accountId, workspace.Id);
 
         return workspace;
     }
@@ -72,6 +75,23 @@ public class WorkspaceService(
             .Select(m => m.Workspace)
             .Where(w => w.DeletedAt == null)
             .ToListAsync();
+
+        // Backfill: accounts that predate the AccountCreated event (or whose event was
+        // missed) never received their individual workspace. Create it lazily on listing so
+        // the result is always complete. Best-effort: not creating one (e.g. free-workspace
+        // quota already consumed by an owned workspace) must never break the listing.
+        if (!workspaces.Any(w => w.Type == WorkspaceType.Individual))
+        {
+            try
+            {
+                var profile = await profileGrpc.GetAccountAsync(new DyGetAccountRequest { Id = accountId.ToString() });
+                workspaces.Add(await EnsureIndividualWorkspace(accountId, profile.Nick));
+            }
+            catch (InvalidOperationException)
+            {
+                // One-per-account or free-workspace quota prevents backfill; list without it.
+            }
+        }
 
         await cache.SetAsync(cacheKey, workspaces, TimeSpan.FromMinutes(5));
         return workspaces;
