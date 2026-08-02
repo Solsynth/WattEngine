@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using DysonNetwork.Shared.Capabilities;
+using DysonNetwork.Shared.Auth;
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
@@ -68,6 +69,7 @@ public class WorkspaceController(
 
     [HttpGet]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesView)]
     public async Task<ActionResult<List<WtWorkspace>>> ListMyWorkspaces()
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -76,6 +78,7 @@ public class WorkspaceController(
 
     [HttpGet("individual")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesView)]
     public async Task<ActionResult<WtWorkspace>> GetMyIndividualWorkspace()
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -94,6 +97,7 @@ public class WorkspaceController(
 
     [HttpPost]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesCreate)]
     public async Task<ActionResult<WtWorkspace>> CreateWorkspace([FromBody] CreateWorkspaceRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -140,6 +144,7 @@ public class WorkspaceController(
 
     [HttpPatch("{slug}")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesUpdate)]
     public async Task<ActionResult<WtWorkspace>> UpdateWorkspace(string slug, [FromBody] UpdateWorkspaceRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -173,6 +178,7 @@ public class WorkspaceController(
 
     [HttpDelete("{slug}")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesDelete)]
     public async Task<IActionResult> DeleteWorkspace(string slug)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -189,6 +195,7 @@ public class WorkspaceController(
 
     [HttpGet("{slug}/members")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesView)]
     public async Task<ActionResult<List<WtWorkspaceMember>>> ListMembers(string slug)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -205,6 +212,7 @@ public class WorkspaceController(
 
     [HttpPost("{slug}/members/invite")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesMembersManage)]
     public async Task<ActionResult<WtWorkspaceMember>> InviteMember(string slug, [FromBody] InviteMemberRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -231,6 +239,7 @@ public class WorkspaceController(
 
     [HttpPatch("{slug}/members/{accountId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesMembersManage)]
     public async Task<ActionResult<WtWorkspaceMember>> UpdateMemberRole(string slug, Guid accountId, [FromBody] UpdateMemberRoleRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -256,6 +265,7 @@ public class WorkspaceController(
 
     [HttpDelete("{slug}/members/{accountId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesMembersManage)]
     public async Task<IActionResult> RemoveMember(string slug, Guid accountId)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -284,6 +294,7 @@ public class WorkspaceController(
 
     [HttpGet("{slug}/plan/status")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesView)]
     public async Task<ActionResult<object>> GetPlanStatus(string slug)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -320,6 +331,7 @@ public class WorkspaceController(
 
     [HttpPost("{slug}/plan/assign-bundled")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesPlansManage)]
     public async Task<ActionResult<object>> AssignBundledPlan(string slug)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -346,6 +358,7 @@ public class WorkspaceController(
 
     [HttpPost("{slug}/plan/unassign-bundled")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesPlansManage)]
     public async Task<IActionResult> UnassignBundledPlan(string slug)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -366,6 +379,7 @@ public class WorkspaceController(
 
     [HttpPost("plan/reassign-bundled")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesPlansManage)]
     public async Task<ActionResult<object>> ReassignBundledPlan([FromBody] ReassignBundledPlanRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
@@ -383,6 +397,7 @@ public class WorkspaceController(
 
     [HttpPost("{slug}/plan/subscribe")]
     [Authorize]
+    [AskPermission(PermissionKeys.WorkspacesPlansManage)]
     public async Task<ActionResult<object>> SubscribePlan(string slug, [FromBody] SubscribePlanRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();

@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using DysonNetwork.Shared.Capabilities;
+using DysonNetwork.Shared.Auth;
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
@@ -67,6 +68,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpGet("broads/{broadId:guid}/tasks")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksView)]
     public async Task<IActionResult> ListTasks(
         [FromRoute] Guid broadId,
         [FromQuery] TaskListFilter filter)
@@ -100,6 +102,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpGet("tasks/{taskId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksView)]
     public async Task<IActionResult> GetTask([FromRoute] Guid taskId)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
@@ -119,6 +122,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpGet("broads/{broadId:guid}/groups")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksView)]
     public async Task<IActionResult> ListTaskGroups([FromRoute] Guid broadId)
     {
         try { return Ok(await taskService.GetTaskGroupsAsync(broadId)); }
@@ -128,6 +132,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpPost("broads/{broadId:guid}/groups")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksCreate)]
     public async Task<IActionResult> CreateTaskGroup([FromRoute] Guid broadId, [FromBody] CreateTaskGroupRequest request)
     {
         try { return Ok(await taskService.CreateTaskGroupAsync(broadId, request.Name, request.Position)); }
@@ -138,6 +143,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpPatch("task-groups/{groupId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksUpdate)]
     public async Task<IActionResult> UpdateTaskGroup([FromRoute] Guid groupId, [FromBody] UpdateTaskGroupRequest request)
     {
         try { return Ok(await taskService.UpdateTaskGroupAsync(groupId, request.Name, request.Position)); }
@@ -148,6 +154,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpDelete("task-groups/{groupId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksDelete)]
     public async Task<IActionResult> DeleteTaskGroup([FromRoute] Guid groupId)
     {
         try { await taskService.DeleteTaskGroupAsync(groupId); return NoContent(); }
@@ -157,6 +164,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpPost("broads/{broadId:guid}/tasks")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksCreate)]
     public async Task<IActionResult> CreateTask([FromRoute] Guid broadId, [FromBody] CreateTaskRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
@@ -213,6 +221,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpPatch("tasks/{taskId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksUpdate)]
     public async Task<IActionResult> UpdateTask([FromRoute] Guid taskId, [FromBody] UpdateTaskRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
@@ -268,6 +277,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpDelete("tasks/{taskId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksDelete)]
     public async Task<IActionResult> DeleteTask([FromRoute] Guid taskId)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
@@ -294,6 +304,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpPost("tasks/{taskId:guid}/assignees")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksAssignmentsManage)]
     public async Task<IActionResult> AssignTask([FromRoute] Guid taskId, [FromBody] AssignTaskRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
@@ -324,6 +335,7 @@ public class TaskController(TaskService taskService, DyFileService.DyFileService
 
     [HttpDelete("tasks/{taskId:guid}/assignees/{assigneeAccountId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.TasksAssignmentsManage)]
     public async Task<IActionResult> UnassignTask([FromRoute] Guid taskId, [FromRoute] Guid assigneeAccountId)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)

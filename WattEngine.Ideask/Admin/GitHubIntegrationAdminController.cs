@@ -12,7 +12,7 @@ namespace WattEngine.Ideask.Admin;
 /// <summary>
 /// Platform-level GitHub integration administration for diagnosing sync failures
 /// and removing misbehaving repository links. Gated by the
-/// <see cref="PermissionKeys.TasksIntegrationsManage"/> permission node.
+/// <see cref="PermissionKeys.AdminTasksIntegrationsManage"/> permission node.
 /// </summary>
 [ApiController]
 [Route("/api/admin/github-integrations")]
@@ -36,7 +36,7 @@ public class GitHubIntegrationAdminController(AppDatabase db) : ControllerBase
     }
 
     [HttpGet]
-    [AskPermission(PermissionKeys.TasksIntegrationsManage)]
+    [AskPermission(PermissionKeys.AdminTasksIntegrationsManage)]
     public async Task<ActionResult<List<GitHubIntegrationAdminSummary>>> ListIntegrations(
         [FromQuery] Guid? broadId = null,
         [FromQuery] string? q = null,
@@ -88,7 +88,7 @@ public class GitHubIntegrationAdminController(AppDatabase db) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [AskPermission(PermissionKeys.TasksIntegrationsManage)]
+    [AskPermission(PermissionKeys.AdminTasksIntegrationsManage)]
     public async Task<IActionResult> DeleteIntegration(Guid id, CancellationToken ct)
     {
         var integration = await db.GitHubIntegrations.FirstOrDefaultAsync(i => i.Id == id, ct);

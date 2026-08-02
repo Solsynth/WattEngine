@@ -66,7 +66,7 @@ public class BoardAdminController(AppDatabase db) : ControllerBase
     }
 
     [HttpGet]
-    [AskPermission(PermissionKeys.BoardsView)]
+    [AskPermission(PermissionKeys.AdminBoardsView)]
     public async Task<ActionResult<List<BoardAdminSummary>>> ListBoards(
         [FromQuery] Guid? workspaceId = null,
         [FromQuery] Guid? accountId = null,
@@ -126,7 +126,7 @@ public class BoardAdminController(AppDatabase db) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [AskPermission(PermissionKeys.BoardsView)]
+    [AskPermission(PermissionKeys.AdminBoardsView)]
     public async Task<ActionResult<BoardAdminDetailResponse>> GetBoard(Guid id, CancellationToken ct)
     {
         var broad = await db.Broads.AsNoTracking().FirstOrDefaultAsync(b => b.Id == id, ct);
@@ -152,7 +152,7 @@ public class BoardAdminController(AppDatabase db) : ControllerBase
     }
 
     [HttpPatch("{id:guid}")]
-    [AskPermission(PermissionKeys.BoardsManage)]
+    [AskPermission(PermissionKeys.AdminBoardsManage)]
     public async Task<ActionResult<WtBroad>> UpdateBoard(Guid id, [FromBody] UpdateBoardAdminRequest request, CancellationToken ct)
     {
         var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == id, ct);
@@ -180,7 +180,7 @@ public class BoardAdminController(AppDatabase db) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [AskPermission(PermissionKeys.BoardsDelete)]
+    [AskPermission(PermissionKeys.AdminBoardsDelete)]
     public async Task<IActionResult> DeleteBoard(Guid id, CancellationToken ct)
     {
         var broad = await db.Broads.FirstOrDefaultAsync(b => b.Id == id, ct);

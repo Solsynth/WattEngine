@@ -56,7 +56,7 @@ public class FlywheelAdminController(AppDatabase db, FlywheelService flywheel, F
     }
 
     [HttpGet("stats")]
-    [AskPermission(PermissionKeys.FlywheelView)]
+    [AskPermission(PermissionKeys.AdminFlywheelView)]
     public async Task<ActionResult<FlywheelStatsResponse>> GetStats(CancellationToken ct)
     {
         var now = clock.GetCurrentInstant();
@@ -81,7 +81,7 @@ public class FlywheelAdminController(AppDatabase db, FlywheelService flywheel, F
     }
 
     [HttpGet("apps")]
-    [AskPermission(PermissionKeys.FlywheelView)]
+    [AskPermission(PermissionKeys.AdminFlywheelView)]
     public async Task<ActionResult<List<FlywheelAdminAppResponse>>> ListApps(
         [FromQuery] Guid? workspaceId = null,
         [FromQuery] int take = 50,
@@ -126,7 +126,7 @@ public class FlywheelAdminController(AppDatabase db, FlywheelService flywheel, F
     }
 
     [HttpGet("audit")]
-    [AskPermission(PermissionKeys.FlywheelAuditView)]
+    [AskPermission(PermissionKeys.AdminFlywheelAuditView)]
     public async Task<ActionResult<List<FlywheelAuditEntry>>> ListAudit(
         [FromQuery] Guid? workspaceId = null,
         [FromQuery] string? appId = null,
@@ -152,7 +152,7 @@ public class FlywheelAdminController(AppDatabase db, FlywheelService flywheel, F
     }
 
     [HttpPatch("apps/{id:guid}")]
-    [AskPermission(PermissionKeys.FlywheelAppsManage)]
+    [AskPermission(PermissionKeys.AdminFlywheelAppsManage)]
     public async Task<ActionResult<FlywheelAppSettings>> UpdateAppSettings(Guid id, [FromBody] UpdateAppSettingsAdminRequest request, CancellationToken ct)
     {
         var settings = await db.AppSettings.SingleOrDefaultAsync(x => x.Id == id, ct)
@@ -165,7 +165,7 @@ public class FlywheelAdminController(AppDatabase db, FlywheelService flywheel, F
     }
 
     [HttpDelete("blobs/{blobId:guid}")]
-    [AskPermission(PermissionKeys.FlywheelBlobsDelete)]
+    [AskPermission(PermissionKeys.AdminFlywheelBlobsDelete)]
     public async Task<IActionResult> DeleteBlob(Guid blobId, [FromQuery] Guid workspaceId, [FromQuery] string appId, CancellationToken ct)
     {
         var blob = await db.Blobs.SingleOrDefaultAsync(

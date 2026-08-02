@@ -1,4 +1,5 @@
 using DysonNetwork.Shared.Models;
+using DysonNetwork.Shared.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ namespace WattEngine.Flywheel.Flywheel;
 public class FlywheelOwnerController(AppDatabase db, FlywheelService flywheel, FlywheelBlobStorage storage, IClock clock) : ControllerBase
 {
     [HttpGet]
+    [AskPermission(PermissionKeys.FlywheelView)]
     public async Task<ActionResult<List<FlywheelOwnerAppResponse>>> ListApps(Guid workspaceId, CancellationToken ct)
     {
         await Owner(workspaceId, ct);
@@ -28,6 +30,7 @@ public class FlywheelOwnerController(AppDatabase db, FlywheelService flywheel, F
     }
 
     [HttpGet("{appId}/management/blobs")]
+    [AskPermission(PermissionKeys.FlywheelView)]
     public async Task<ActionResult<List<FlywheelOwnerBlobResponse>>> ListAppBlobs(Guid workspaceId, string appId, CancellationToken ct)
     {
         await Owner(workspaceId, ct);
@@ -42,6 +45,7 @@ public class FlywheelOwnerController(AppDatabase db, FlywheelService flywheel, F
     }
 
     [HttpGet("{appId}/management/audit")]
+    [AskPermission(PermissionKeys.FlywheelView)]
     public async Task<ActionResult<List<FlywheelAuditResponse>>> GetAudit(Guid workspaceId, string appId, [FromQuery] int take = 100, CancellationToken ct = default)
     {
         await Owner(workspaceId, ct);
@@ -51,6 +55,7 @@ public class FlywheelOwnerController(AppDatabase db, FlywheelService flywheel, F
     }
 
     [HttpDelete("{appId}/management/blobs/{blobId:guid}")]
+    [AskPermission(PermissionKeys.FlywheelBlobsDelete)]
     public async Task<IActionResult> DeleteBlob(Guid workspaceId, string appId, Guid blobId, CancellationToken ct)
     {
         var actor = await Owner(workspaceId, ct);

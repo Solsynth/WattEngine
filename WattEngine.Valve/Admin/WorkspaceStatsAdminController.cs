@@ -30,7 +30,7 @@ public class WorkspaceStatsAdminController(AppDatabase db, IClock clock) : Contr
     }
 
     [HttpGet]
-    [AskPermission(PermissionKeys.WorkspacesView)]
+    [AskPermission(PermissionKeys.AdminWorkspacesView)]
     public async Task<ActionResult<WorkspaceStatsResponse>> GetStats(CancellationToken ct)
     {
         var workspaces = db.Workspaces.AsNoTracking();

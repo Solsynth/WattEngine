@@ -71,7 +71,7 @@ public class WorkspaceAdminController(AppDatabase db, IClock clock, WorkspaceSer
     /// are reported per-account instead of failing the batch.
     /// </summary>
     [HttpPost("backfill")]
-    [AskPermission(PermissionKeys.WorkspacesManage)]
+    [AskPermission(PermissionKeys.AdminWorkspacesManage)]
     public async Task<ActionResult<List<WorkspaceService.BackfillIndividualWorkspaceResult>>> BackfillWorkspaces(
         [FromBody] BackfillWorkspacesRequest request,
         CancellationToken ct = default)
@@ -83,7 +83,7 @@ public class WorkspaceAdminController(AppDatabase db, IClock clock, WorkspaceSer
     }
 
     [HttpGet]
-    [AskPermission(PermissionKeys.WorkspacesView)]
+    [AskPermission(PermissionKeys.AdminWorkspacesView)]
     public async Task<ActionResult<List<WorkspaceAdminSummary>>> ListWorkspaces(
         [FromQuery] WorkspaceType? type = null,
         [FromQuery] WorkspacePlan? plan = null,
@@ -144,7 +144,7 @@ public class WorkspaceAdminController(AppDatabase db, IClock clock, WorkspaceSer
     }
 
     [HttpGet("{id:guid}")]
-    [AskPermission(PermissionKeys.WorkspacesView)]
+    [AskPermission(PermissionKeys.AdminWorkspacesView)]
     public async Task<ActionResult<WorkspaceAdminDetailResponse>> GetWorkspace(Guid id, CancellationToken ct)
     {
         var workspace = await db.Workspaces.AsNoTracking().FirstOrDefaultAsync(w => w.Id == id, ct);
@@ -176,7 +176,7 @@ public class WorkspaceAdminController(AppDatabase db, IClock clock, WorkspaceSer
     }
 
     [HttpPatch("{id:guid}")]
-    [AskPermission(PermissionKeys.WorkspacesManage)]
+    [AskPermission(PermissionKeys.AdminWorkspacesManage)]
     public async Task<ActionResult<WtWorkspace>> UpdateWorkspace(Guid id, [FromBody] UpdateWorkspaceRequest request, CancellationToken ct)
     {
         var workspace = await db.Workspaces.FirstOrDefaultAsync(w => w.Id == id, ct);
@@ -200,7 +200,7 @@ public class WorkspaceAdminController(AppDatabase db, IClock clock, WorkspaceSer
     }
 
     [HttpPut("{id:guid}/plan")]
-    [AskPermission(PermissionKeys.WorkspacesPlansManage)]
+    [AskPermission(PermissionKeys.AdminWorkspacesPlansManage)]
     public async Task<ActionResult<WtWorkspace>> UpdateWorkspacePlan(Guid id, [FromBody] UpdateWorkspacePlanRequest request, CancellationToken ct)
     {
         var workspace = await db.Workspaces.FirstOrDefaultAsync(w => w.Id == id, ct);
@@ -217,7 +217,7 @@ public class WorkspaceAdminController(AppDatabase db, IClock clock, WorkspaceSer
     }
 
     [HttpDelete("{id:guid}")]
-    [AskPermission(PermissionKeys.WorkspacesDelete)]
+    [AskPermission(PermissionKeys.AdminWorkspacesDelete)]
     public async Task<IActionResult> DeleteWorkspace(Guid id, CancellationToken ct)
     {
         var workspace = await db.Workspaces.FirstOrDefaultAsync(w => w.Id == id, ct);

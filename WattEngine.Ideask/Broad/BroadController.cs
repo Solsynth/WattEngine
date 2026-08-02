@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using DysonNetwork.Shared.Capabilities;
+using DysonNetwork.Shared.Auth;
 using DysonNetwork.Shared.Models;
 using DysonNetwork.Shared.Proto;
 using Microsoft.AspNetCore.Authorization;
@@ -45,6 +46,7 @@ public class BroadController(BroadService broadService) : ControllerBase
 
     [HttpGet]
     [Authorize]
+    [AskPermission(PermissionKeys.BoardsView)]
     public async Task<IActionResult> ListBroads()
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
@@ -56,6 +58,7 @@ public class BroadController(BroadService broadService) : ControllerBase
 
     [HttpGet("{broadId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.BoardsView)]
     public async Task<IActionResult> GetBroad([FromRoute] Guid broadId)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
@@ -68,6 +71,7 @@ public class BroadController(BroadService broadService) : ControllerBase
 
     [HttpPost]
     [Authorize]
+    [AskPermission(PermissionKeys.BoardsCreate)]
     public async Task<IActionResult> CreateBroad([FromBody] CreateBroadRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
@@ -99,6 +103,7 @@ public class BroadController(BroadService broadService) : ControllerBase
 
     [HttpPatch("{broadId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.BoardsUpdate)]
     public async Task<IActionResult> UpdateBroad([FromRoute] Guid broadId, [FromBody] UpdateBroadRequest request)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)
@@ -132,6 +137,7 @@ public class BroadController(BroadService broadService) : ControllerBase
 
     [HttpDelete("{broadId:guid}")]
     [Authorize]
+    [AskPermission(PermissionKeys.BoardsDelete)]
     public async Task<IActionResult> DeleteBroad([FromRoute] Guid broadId)
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser)

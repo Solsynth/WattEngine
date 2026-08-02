@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using DysonNetwork.Shared.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NodaTime;
@@ -13,6 +14,7 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
     public record LinkRepositoryRequest(long InstallationId, string Owner, string Repository);
 
     [HttpGet("broads/{broadId:guid}/install-url"), Authorize]
+    [AskPermission(PermissionKeys.TasksIntegrationsManage)]
     public async Task<IActionResult> InstallUrl(Guid broadId)
     {
         try { return Ok(new { url = await integrations.CreateInstallUrlAsync(broadId, HttpContext.RequestAborted) }); }
@@ -21,6 +23,7 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
     }
 
     [HttpGet("broads/{broadId:guid}/installations/{installationId:long}/repositories"), Authorize]
+    [AskPermission(PermissionKeys.TasksIntegrationsManage)]
     public async Task<IActionResult> ListRepositories(Guid broadId, long installationId)
     {
         try { return Ok(await integrations.ListRepositoriesAsync(broadId, installationId, HttpContext.RequestAborted)); }
@@ -29,6 +32,7 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
     }
 
     [HttpGet("broads/{broadId:guid}/installation"), Authorize]
+    [AskPermission(PermissionKeys.TasksIntegrationsManage)]
     public async Task<IActionResult> Installation(Guid broadId)
     {
         try
@@ -40,6 +44,7 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
     }
 
     [HttpGet("broads/{broadId:guid}"), Authorize]
+    [AskPermission(PermissionKeys.TasksIntegrationsManage)]
     public async Task<IActionResult> Status(Guid broadId)
     {
         try { return Ok(await integrations.GetStatusAsync(broadId)); }
@@ -49,6 +54,7 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
     }
 
     [HttpPost("broads/{broadId:guid}"), Authorize]
+    [AskPermission(PermissionKeys.TasksIntegrationsManage)]
     public async Task<IActionResult> Link(Guid broadId, [FromBody] LinkRepositoryRequest request)
     {
         try { return Ok(await integrations.LinkAsync(broadId, request.InstallationId, request.Owner, request.Repository, HttpContext.RequestAborted)); }
@@ -58,6 +64,7 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
     }
 
     [HttpPost("broads/{broadId:guid}/sync"), Authorize]
+    [AskPermission(PermissionKeys.TasksIntegrationsManage)]
     public async Task<IActionResult> Sync(Guid broadId)
     {
         try { await integrations.EnqueueBroadSyncAsync(broadId, HttpContext.RequestAborted); return Accepted(); }
@@ -67,6 +74,7 @@ public class GitHubController(GitHubIntegrationService integrations) : Controlle
     }
 
     [HttpDelete("integrations/{integrationId:guid}"), Authorize]
+    [AskPermission(PermissionKeys.TasksIntegrationsManage)]
     public async Task<IActionResult> Unlink(Guid integrationId)
     {
         try { await integrations.UnlinkAsync(integrationId, HttpContext.RequestAborted); return NoContent(); }

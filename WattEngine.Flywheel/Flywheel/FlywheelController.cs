@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 using DysonNetwork.Shared.Models;
+using DysonNetwork.Shared.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,9 +16,11 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
     public class UploadBlobRequest { [Required] public IFormFile File { get; set; } = null!; [Range(1, int.MaxValue)] public int SchemeVersion { get; set; } [Range(0, long.MaxValue)] public long ExpectedRevision { get; set; } }
 
     [HttpGet("settings")]
+    [AskPermission(PermissionKeys.FlywheelView)]
     public async Task<ActionResult<FlywheelSettingsResponse>> GetSettings(Guid workspaceId, string appId, CancellationToken ct) => ToSettings(await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct), await flywheel.GetRetentionCapAsync(workspaceId, ct));
 
     [HttpPatch("settings")]
+    [AskPermission(PermissionKeys.FlywheelAppsManage)]
     public async Task<ActionResult<FlywheelSettingsResponse>> UpdateSettings(Guid workspaceId, string appId, UpdateSettingsRequest request, CancellationToken ct)
     {
         var settings = await Settings(workspaceId, appId, FlywheelService.AdminRole, ct);
@@ -30,6 +33,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
     }
 
     [HttpGet("blobs")]
+    [AskPermission(PermissionKeys.FlywheelView)]
     public async Task<ActionResult<List<FlywheelBlobResponse>>> ListBlobs(Guid workspaceId, string appId, CancellationToken ct)
     {
         await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct);
@@ -37,6 +41,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
     }
 
     [HttpGet("blobs/{blobId:guid}")]
+    [AskPermission(PermissionKeys.FlywheelView)]
     public async Task<ActionResult<FlywheelBlobResponse>> GetBlob(Guid workspaceId, string appId, Guid blobId, CancellationToken ct)
     {
         await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct);
@@ -45,6 +50,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
 
     [HttpPut("blobs/{blobId:guid}")]
     [Consumes("multipart/form-data")]
+    [AskPermission(PermissionKeys.FlywheelBlobsManage)]
     public async Task<ActionResult<FlywheelRevisionResponse>> Upload(Guid workspaceId, string appId, Guid blobId, [FromForm] UploadBlobRequest request, CancellationToken ct)
     {
         var settings = await Settings(workspaceId, appId, FlywheelService.MemberRole, ct);
@@ -62,6 +68,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
     }
 
     [HttpGet("blobs/{blobId:guid}/revisions/{revision:long}")]
+    [AskPermission(PermissionKeys.FlywheelView)]
     public async Task<ActionResult<FlywheelRevisionResponse>> GetRevision(Guid workspaceId, string appId, Guid blobId, long revision, CancellationToken ct)
     {
         await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct);
@@ -71,6 +78,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
     }
 
     [HttpGet("blobs/{blobId:guid}/content")]
+    [AskPermission(PermissionKeys.FlywheelView)]
     public async Task<IActionResult> Download(Guid workspaceId, string appId, Guid blobId, [FromQuery] long? revision, CancellationToken ct)
     {
         await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct);
@@ -82,6 +90,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
     }
 
     [HttpGet("events")]
+    [AskPermission(PermissionKeys.FlywheelView)]
     public async Task Events(Guid workspaceId, string appId, [FromQuery] long after = 0, CancellationToken ct = default)
     {
         Response.Headers.ContentType = "text/event-stream"; Response.Headers.CacheControl = "no-cache";

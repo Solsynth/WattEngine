@@ -57,7 +57,7 @@ public class TaskAdminController(AppDatabase db, IClock clock) : ControllerBase
     }
 
     [HttpGet]
-    [AskPermission(PermissionKeys.TasksView)]
+    [AskPermission(PermissionKeys.AdminTasksView)]
     public async Task<ActionResult<List<TaskAdminSummary>>> ListTasks(
         [FromQuery] Guid? broadId = null,
         [FromQuery] TaskStatus? status = null,
@@ -122,7 +122,7 @@ public class TaskAdminController(AppDatabase db, IClock clock) : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
-    [AskPermission(PermissionKeys.TasksView)]
+    [AskPermission(PermissionKeys.AdminTasksView)]
     public async Task<ActionResult<TaskAdminDetailResponse>> GetTask(Guid id, CancellationToken ct)
     {
         var task = await db.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id, ct);
@@ -151,7 +151,7 @@ public class TaskAdminController(AppDatabase db, IClock clock) : ControllerBase
     }
 
     [HttpPatch("{id:guid}")]
-    [AskPermission(PermissionKeys.TasksManage)]
+    [AskPermission(PermissionKeys.AdminTasksManage)]
     public async Task<ActionResult<WtTask>> UpdateTask(Guid id, [FromBody] UpdateTaskAdminRequest request, CancellationToken ct)
     {
         var task = await db.Tasks.FirstOrDefaultAsync(t => t.Id == id, ct);
@@ -175,7 +175,7 @@ public class TaskAdminController(AppDatabase db, IClock clock) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [AskPermission(PermissionKeys.TasksDelete)]
+    [AskPermission(PermissionKeys.AdminTasksDelete)]
     public async Task<IActionResult> DeleteTask(Guid id, CancellationToken ct)
     {
         var task = await db.Tasks.FirstOrDefaultAsync(t => t.Id == id, ct);
