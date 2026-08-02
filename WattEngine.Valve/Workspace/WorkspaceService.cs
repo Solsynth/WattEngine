@@ -39,7 +39,7 @@ public class WorkspaceService(
             w.DeletedAt == null);
     }
 
-    /// <summary>Outcome of an admin-driven individual-workspace backfill for one account.</summary>
+    /// <summary>Outcome of an individual-workspace backfill for one account.</summary>
     public sealed record BackfillIndividualWorkspaceResult(
         Guid AccountId,
         bool Created,
@@ -53,9 +53,9 @@ public class WorkspaceService(
 
     /// <summary>
     /// Creates one account's individual workspace on demand, resolving the profile username
-    /// (falling back to display name) server-side. Only invoked by the admin backfill endpoint,
-    /// since an account may never use workspaces and should not get one implicitly. Single
-    /// profile fetch.
+    /// (falling back to display name) server-side. Invoked by the admin backfill endpoint and
+    /// lazily by the user's own workspace-listing access; an account is never given an
+    /// individual workspace without one of those triggers. Single profile fetch.
     /// </summary>
     public async Task<BackfillIndividualWorkspaceResult> BackfillIndividualWorkspace(Guid accountId)
     {

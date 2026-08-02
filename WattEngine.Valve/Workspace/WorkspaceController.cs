@@ -73,6 +73,12 @@ public class WorkspaceController(
     public async Task<ActionResult<List<WtWorkspace>>> ListMyWorkspaces()
     {
         if (HttpContext.Items["CurrentUser"] is not SnAccount currentUser) return Unauthorized();
+
+        // The individual workspace is created lazily on first access: if the user lists
+        // workspaces before any backfill ran, create it for them on the spot.
+        if (await ws.GetIndividualWorkspace(currentUser.Id) is null)
+            await ws.BackfillIndividualWorkspace(currentUser.Id);
+
         return await ws.GetUserWorkspaces(currentUser.Id);
     }
 
