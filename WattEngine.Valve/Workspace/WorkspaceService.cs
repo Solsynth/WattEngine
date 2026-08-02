@@ -39,29 +39,6 @@ public class WorkspaceService(
             w.DeletedAt == null);
     }
 
-    public async Task<WtWorkspace> EnsureIndividualWorkspace(AccountCreatedEvent account)
-        => await EnsureIndividualWorkspace(account.AccountId, account.Nick);
-
-    public async Task<WtWorkspace> EnsureIndividualWorkspace(Guid accountId, string nick)
-    {
-        var existing = await GetIndividualWorkspace(accountId);
-        if (existing is not null) return existing;
-
-        var workspace = new WtWorkspace
-        {
-            Slug = $"individual-{accountId:N}",
-            Name = nick,
-            Type = WorkspaceType.Individual
-        };
-        await Create(workspace, accountId);
-
-        var profile = await profileGrpc.GetAccountAsync(new DyGetAccountRequest { Id = accountId.ToString() });
-        if (profile.PerkLevel >= WorkspacePlanPricing.BundledPlanRequiredPerkLevel)
-            await AssignBundledPlan(accountId, workspace.Id);
-
-        return workspace;
-    }
-
     /// <summary>Outcome of an admin-driven individual-workspace backfill for one account.</summary>
     public sealed record BackfillIndividualWorkspaceResult(
         Guid AccountId,
@@ -75,9 +52,10 @@ public class WorkspaceService(
     }
 
     /// <summary>
-    /// Ensures an account has its individual workspace, resolving the profile nick server-side.
-    /// Used by the admin backfill endpoint for accounts that predate (or missed) the
-    /// AccountCreated event and therefore never received a workspace. Single profile fetch.
+    /// Creates one account's individual workspace on demand, resolving the profile username
+    /// (falling back to display name) server-side. Only invoked by the admin backfill endpoint,
+    /// since an account may never use workspaces and should not get one implicitly. Single
+    /// profile fetch.
     /// </summary>
     public async Task<BackfillIndividualWorkspaceResult> BackfillIndividualWorkspace(Guid accountId)
     {
@@ -91,7 +69,9 @@ public class WorkspaceService(
             profile = await profileGrpc.GetAccountAsync(new DyGetAccountRequest { Id = accountId.ToString() });
         }
         catch { /* best-effort naming */ }
-        if (!string.IsNullOrWhiteSpace(profile?.Nick)) nick = profile.Nick;
+        // Prefer the account username, fall back to display name, then the placeholder.
+        if (!string.IsNullOrWhiteSpace(profile?.Name)) nick = profile.Name;
+        else if (!string.IsNullOrWhiteSpace(profile?.Nick)) nick = profile.Nick;
 
         try
         {
@@ -132,23 +112,6 @@ public class WorkspaceService(
             .Select(m => m.Workspace)
             .Where(w => w.DeletedAt == null)
             .ToListAsync();
-
-        // Backfill: accounts that predate the AccountCreated event (or whose event was
-        // missed) never received their individual workspace. Create it lazily on listing so
-        // the result is always complete. Best-effort: not creating one (e.g. free-workspace
-        // quota already consumed by an owned workspace) must never break the listing.
-        if (!workspaces.Any(w => w.Type == WorkspaceType.Individual))
-        {
-            try
-            {
-                var profile = await profileGrpc.GetAccountAsync(new DyGetAccountRequest { Id = accountId.ToString() });
-                workspaces.Add(await EnsureIndividualWorkspace(accountId, profile.Nick));
-            }
-            catch (InvalidOperationException)
-            {
-                // One-per-account or free-workspace quota prevents backfill; list without it.
-            }
-        }
 
         await cache.SetAsync(cacheKey, workspaces, TimeSpan.FromMinutes(5));
         return workspaces;

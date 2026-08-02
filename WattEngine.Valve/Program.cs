@@ -34,14 +34,6 @@ builder.Services.AddAppScheduledJobs();
 // Register payment event listener
 builder.Services.AddEventBus()
     .AddFileMetadataReferenceListener<AppDatabase>()
-    .AddListener<AccountCreatedEvent>(
-        AccountCreatedEvent.Type,
-        async (evt, ctx) =>
-        {
-            var workspaces = ctx.ServiceProvider.GetRequiredService<WorkspaceService>();
-            await workspaces.EnsureIndividualWorkspace(evt);
-        }
-    )
     .AddListener<PaymentOrderEvent>(
         PaymentOrderEventBase.Type,
         async (evt, ctx) =>
