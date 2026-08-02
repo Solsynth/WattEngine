@@ -62,6 +62,63 @@ public class WorkspaceService(
         return workspace;
     }
 
+    /// <summary>Outcome of an admin-driven individual-workspace backfill for one account.</summary>
+    public sealed record BackfillIndividualWorkspaceResult(
+        Guid AccountId,
+        bool Created,
+        Guid? WorkspaceId,
+        bool AlreadyExists,
+        string? Error)
+    {
+        public BackfillIndividualWorkspaceResult(Guid accountId, bool created, Guid? workspaceId, bool alreadyExists)
+            : this(accountId, created, workspaceId, alreadyExists, null) { }
+    }
+
+    /// <summary>
+    /// Ensures an account has its individual workspace, resolving the profile nick server-side.
+    /// Used by the admin backfill endpoint for accounts that predate (or missed) the
+    /// AccountCreated event and therefore never received a workspace. Single profile fetch.
+    /// </summary>
+    public async Task<BackfillIndividualWorkspaceResult> BackfillIndividualWorkspace(Guid accountId)
+    {
+        var existing = await GetIndividualWorkspace(accountId);
+        if (existing is not null)
+            return new BackfillIndividualWorkspaceResult(accountId, false, existing.Id, alreadyExists: true);
+        string nick = "Account";
+        DyAccount? profile = null;
+        try
+        {
+            profile = await profileGrpc.GetAccountAsync(new DyGetAccountRequest { Id = accountId.ToString() });
+        }
+        catch { /* best-effort naming */ }
+        if (!string.IsNullOrWhiteSpace(profile?.Nick)) nick = profile.Nick;
+
+        try
+        {
+            var workspace = new WtWorkspace
+            {
+                Slug = $"individual-{accountId:N}",
+                Name = nick,
+                Type = WorkspaceType.Individual
+            };
+            await Create(workspace, accountId);
+
+            if (profile?.PerkLevel >= WorkspacePlanPricing.BundledPlanRequiredPerkLevel)
+                await AssignBundledPlan(accountId, workspace.Id);
+
+            return new BackfillIndividualWorkspaceResult(accountId, true, workspace.Id, false);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // One-per-account or free-workspace quota prevents backfill for this account.
+            return new BackfillIndividualWorkspaceResult(accountId, false, null, false, ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return new BackfillIndividualWorkspaceResult(accountId, false, null, false, ex.Message);
+        }
+    }
+
     public async Task<List<WtWorkspace>> GetUserWorkspaces(Guid accountId)
     {
         var cacheKey = $"{CacheKeyPrefix}user:{accountId}";

@@ -19,7 +19,7 @@ namespace WattEngine.Valve.Admin;
 [Route("/api/admin/workspaces")]
 [Authorize]
 [ApiFeature("admin.workspaces", Revision = 1)]
-public class WorkspaceAdminController(AppDatabase db, IClock clock) : ControllerBase
+public class WorkspaceAdminController(AppDatabase db, IClock clock, WorkspaceService workspace) : ControllerBase
 {
     public class WorkspaceAdminSummary
     {
@@ -57,6 +57,29 @@ public class WorkspaceAdminController(AppDatabase db, IClock clock) : Controller
         [Required] public WorkspacePlan Plan { get; set; }
         public Instant? PlanExpiresAt { get; set; }
         public bool? IsBundled { get; set; }
+    }
+
+    public class BackfillWorkspacesRequest
+    {
+        [Required, MinLength(1), MaxLength(200)]
+        public List<Guid> AccountIds { get; set; } = [];
+    }
+
+    /// <summary>
+    /// Platform-admin backfill: for each account that doesn't yet own an individual workspace,
+    /// create one (resolving the nick from the account profile). Existing or blocked accounts
+    /// are reported per-account instead of failing the batch.
+    /// </summary>
+    [HttpPost("backfill")]
+    [AskPermission(PermissionKeys.WorkspacesManage)]
+    public async Task<ActionResult<List<WorkspaceService.BackfillIndividualWorkspaceResult>>> BackfillWorkspaces(
+        [FromBody] BackfillWorkspacesRequest request,
+        CancellationToken ct = default)
+    {
+        var results = new List<WorkspaceService.BackfillIndividualWorkspaceResult>(request.AccountIds.Count);
+        foreach (var accountId in request.AccountIds.Distinct())
+            results.Add(await workspace.BackfillIndividualWorkspace(accountId));
+        return Ok(results);
     }
 
     [HttpGet]
