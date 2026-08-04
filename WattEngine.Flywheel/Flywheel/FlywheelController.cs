@@ -17,19 +17,17 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
 
     [HttpGet("settings")]
     [AskPermission(PermissionKeys.FlywheelView)]
-    public async Task<ActionResult<FlywheelSettingsResponse>> GetSettings(Guid workspaceId, string appId, CancellationToken ct) => ToSettings(await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct), await flywheel.GetRetentionCapAsync(workspaceId, ct));
+    public async Task<ActionResult<FlywheelSettingsResponse>> GetSettings(Guid workspaceId, string appId, CancellationToken ct) => ToSettings(await Settings(workspaceId, appId, FlywheelService.ViewerRole, ct), FlywheelService.MaxRetainedRevisionCount);
 
     [HttpPatch("settings")]
     [AskPermission(PermissionKeys.FlywheelAppsManage)]
     public async Task<ActionResult<FlywheelSettingsResponse>> UpdateSettings(Guid workspaceId, string appId, UpdateSettingsRequest request, CancellationToken ct)
     {
         var settings = await Settings(workspaceId, appId, FlywheelService.AdminRole, ct);
-        var cap = await flywheel.GetRetentionCapAsync(workspaceId, ct);
-        if (request.RetainedRevisionCount > cap) return BadRequest($"This workspace plan permits at most {cap} retained prior revisions.");
         settings.RetainedRevisionCount = request.RetainedRevisionCount;
         flywheel.AddAudit(workspaceId, appId, null, null, "app.retention-updated", CurrentUserId(), NodaTime.SystemClock.Instance.GetCurrentInstant());
         await db.SaveChangesAsync(ct);
-        return ToSettings(settings, cap);
+        return ToSettings(settings, FlywheelService.MaxRetainedRevisionCount);
     }
 
     [HttpGet("blobs")]
@@ -54,6 +52,7 @@ public partial class FlywheelController(AppDatabase db, FlywheelService flywheel
     public async Task<ActionResult<FlywheelRevisionResponse>> Upload(Guid workspaceId, string appId, Guid blobId, [FromForm] UploadBlobRequest request, CancellationToken ct)
     {
         var settings = await Settings(workspaceId, appId, FlywheelService.MemberRole, ct);
+        await flywheel.EnsureWithinStorageBudgetAsync(workspaceId, request.File.Length, ct);
         var newRevision = request.ExpectedRevision + 1;
         var key = storage.BuildObjectKey(workspaceId, appId, blobId, newRevision);
         var saved = await storage.SaveAsync(key, request.File, ct);

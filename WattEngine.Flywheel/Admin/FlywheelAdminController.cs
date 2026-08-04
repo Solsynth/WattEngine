@@ -51,7 +51,7 @@ public class FlywheelAdminController(AppDatabase db, FlywheelService flywheel, F
 
     public class UpdateAppSettingsAdminRequest
     {
-        /// <summary>Admin override; not constrained by the workspace plan cap.</summary>
+        /// <summary>Admin override; all plans allow 0–20 retained prior revisions.</summary>
         [Range(0, 20)] public int RetainedRevisionCount { get; set; }
     }
 

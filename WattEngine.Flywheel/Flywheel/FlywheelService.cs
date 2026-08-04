@@ -16,8 +16,6 @@ public class FlywheelService(AppDatabase db, RemoteWorkspaceService workspaces, 
     {
         if (!await workspaces.IsMemberWithRole(workspaceId, accountId, [requiredRole], ct))
             throw new FlywheelForbiddenException();
-        if (await workspaces.GetPlan(workspaceId, ct) is not (DyWorkspacePlan.Pro or DyWorkspacePlan.Enterprise))
-            throw new FlywheelSubscriptionRequiredException();
 
         var settings = await db.AppSettings.SingleOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.AppId == appId, ct);
         if (settings is not null) return settings;
@@ -28,10 +26,23 @@ public class FlywheelService(AppDatabase db, RemoteWorkspaceService workspaces, 
         return settings;
     }
 
-    public async Task<int> GetRetentionCapAsync(Guid workspaceId, CancellationToken ct)
+    public const int MaxRetainedRevisionCount = 20;
+
+    /// <summary>Flywheel blobs may use up to half of the workspace's plan storage quota.</summary>
+    public async Task<long> GetStorageBudgetAsync(Guid workspaceId, CancellationToken ct)
     {
-        var plan = await workspaces.GetPlan(workspaceId, ct);
-        return plan switch { DyWorkspacePlan.Pro => 3, DyWorkspacePlan.Enterprise => 20, _ => 0 };
+        var workspace = await workspaces.GetWorkspace(workspaceId, ct);
+        var quota = await workspaces.GetPlanQuota(workspace.Plan, ct);
+        return quota.MaxStorageBytes / 2;
+    }
+
+    public async Task EnsureWithinStorageBudgetAsync(Guid workspaceId, long additionalBytes, CancellationToken ct)
+    {
+        var budget = await GetStorageBudgetAsync(workspaceId, ct);
+        var blobIds = db.Blobs.Where(x => x.WorkspaceId == workspaceId).Select(x => x.Id);
+        var used = await db.BlobRevisions.Where(x => blobIds.Contains(x.BlobId)).SumAsync(x => (long?)x.Size, ct) ?? 0;
+        if (used + additionalBytes > budget)
+            throw new FlywheelStorageQuotaExceededException($"Flywheel blob storage would exceed {budget:N0} bytes (50% of this workspace's storage quota).");
     }
 
     public async Task<FlywheelBlobRevision> CommitRevisionAsync(
@@ -72,8 +83,6 @@ public class FlywheelService(AppDatabase db, RemoteWorkspaceService workspaces, 
     {
         if (!await workspaces.IsMemberWithRole(workspaceId, accountId, [OwnerRole], ct))
             throw new FlywheelForbiddenException();
-        if (await workspaces.GetPlan(workspaceId, ct) is not (DyWorkspacePlan.Pro or DyWorkspacePlan.Enterprise))
-            throw new FlywheelSubscriptionRequiredException();
     }
 
     public void AddAudit(Guid workspaceId, string appId, Guid? blobId, long? revision, string action, Guid actorAccountId, Instant at) =>
@@ -84,4 +93,4 @@ public class FlywheelForbiddenException : Exception;
 public class FlywheelNotFoundException(string message) : Exception(message);
 public class FlywheelConflictException(string message) : Exception(message);
 public class FlywheelValidationException(string message) : Exception(message);
-public class FlywheelSubscriptionRequiredException : Exception { public FlywheelSubscriptionRequiredException() : base("Flywheel requires a Pro or Enterprise workspace subscription.") { } }
+public class FlywheelStorageQuotaExceededException(string message) : Exception(message);

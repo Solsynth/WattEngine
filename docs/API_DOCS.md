@@ -926,8 +926,9 @@ counts and retained bytes. Gated by `flywheel.view`.
 
 #### Override App Retention
 
-`PATCH /api/admin/flywheel/apps/{id}` — set `retained_revision_count` (admin override, not capped by
-workspace plan). Gated by `flywheel.apps.manage`.
+`PATCH /api/admin/flywheel/apps/{id}` — set `retained_revision_count` (admin override; all plans allow
+`0–20`, and Flywheel blob storage is capped at 50% of the workspace storage quota). Gated by
+`flywheel.apps.manage`.
 
 #### Purge Blob
 

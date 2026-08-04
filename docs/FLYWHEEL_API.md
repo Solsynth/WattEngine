@@ -17,14 +17,17 @@ such as `dev.solsynth.maidkit`.
 
 ## Access and retention
 
-- Flywheel requires a Pro or Enterprise Valve workspace.
+- Flywheel is available to every Valve workspace.
 - Viewer+ may list, inspect, download, and receive SSE notifications.
 - Member+ may upload encrypted blobs.
 - Admin/Owner may configure retained prior revisions per workspace × app.
 - Workspace Owners may inventory every Flywheel app/save, inspect audit metadata,
   and permanently delete an individual opaque save.
-- Pro permits `0–3`; Enterprise permits `0–20`. `0` keeps only the current
+- All plans permit `0–20` retained prior revisions. `0` keeps only the current
   revision.
+- Flywheel blob storage may use up to 50% of the workspace's plan storage
+  quota. A `PUT` that would push it past that budget is rejected with
+  `413 Payload Too Large`.
 
 ## Blob API
 

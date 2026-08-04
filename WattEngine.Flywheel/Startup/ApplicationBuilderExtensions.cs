@@ -17,7 +17,7 @@ public static class ApplicationBuilderExtensions
                 {
                     FlywheelValidationException => StatusCodes.Status400BadRequest,
                     FlywheelForbiddenException => StatusCodes.Status403Forbidden,
-                    FlywheelSubscriptionRequiredException => StatusCodes.Status403Forbidden,
+                    FlywheelStorageQuotaExceededException => StatusCodes.Status413PayloadTooLarge,
                     FlywheelNotFoundException => StatusCodes.Status404NotFound,
                     FlywheelConflictException => StatusCodes.Status409Conflict,
                     _ => StatusCodes.Status500InternalServerError
