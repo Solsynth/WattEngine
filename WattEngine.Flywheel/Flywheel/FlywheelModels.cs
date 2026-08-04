@@ -57,4 +57,5 @@ public record FlywheelBlobResponse(Guid BlobId, long CurrentRevision, long LastE
 public record FlywheelRevisionResponse(Guid BlobId, long Revision, int SchemeVersion, long Size, string Sha256, Instant CreatedAt);
 public record FlywheelOwnerAppResponse(string AppId, int RetainedRevisionCount, int BlobCount, int RetainedRevisionCountTotal, long RetainedBytes, Instant LastUpdatedAt);
 public record FlywheelOwnerBlobResponse(Guid BlobId, long CurrentRevision, int RetainedRevisionCount, long RetainedBytes, Instant UpdatedAt);
+public record FlywheelStorageQuotaResponse(long UsedBytes, long BudgetBytes);
 public record FlywheelAuditResponse(string AppId, Guid? BlobId, long? Revision, string Action, Guid ActorAccountId, Instant CreatedAt);

@@ -71,6 +71,9 @@ The owner-only gateway path is `GET /flywheel/workspaces/{workspaceId}/apps`.
 It lists every app namespace with retained-byte and revision totals, but never
 returns encrypted content or S3 keys. Owners can also use:
 
+- `GET .../apps` — workspace-level inventory.
+- `GET .../quota` — `{ usedBytes, budgetBytes }` for the Flywheel storage budget
+  (50% of the workspace's plan storage quota) and the bytes currently stored.
 - `GET .../apps/{appId}/management/blobs` for opaque save inventory.
 - `GET .../apps/{appId}/management/audit?take=100` for metadata audit events.
   Every `blob.uploaded` event includes the uploader account ID, blob UUID,
