@@ -1,4 +1,5 @@
 using DysonNetwork.Shared.Auth;
+using DysonNetwork.Shared.EventBus;
 using DysonNetwork.Shared.Networking;
 using DysonNetwork.Shared.Registry;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +16,7 @@ builder.Services.AddDysonAuth();
 builder.Services.AddDyAuthModelProjection();
 builder.Services.AddWorkspaceService();
 builder.Services.AddAppBusinessServices();
+builder.Services.AddEventBus();
 
 builder.AddSwaggerManifest(
     "WattEngine.Flywheel",
